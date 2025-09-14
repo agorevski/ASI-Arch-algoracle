@@ -5,6 +5,7 @@ import random
 import threading
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
+import traceback
 
 from util import DataElement, _evaluate_loss, _evaluate_result, log_agent_run
 
@@ -217,7 +218,7 @@ class CandidateManager:
                 self.logger.info("Candidate storage file not found, creating new candidate set")
                 
         except Exception as e:
-            self.logger.error(f"Failed to load candidate set: {e}")
+            self.logger.error(f"Failed to load candidate set: {e}\nTraceback: {traceback.format_exc()}")
             self.candidates = []
             self.new_data_count = 0
     
