@@ -23,23 +23,22 @@ print_error() {
 check_mongodb() {
     print_info "Checking MongoDB service status..."
     
-    cd /root/workspace/mongodb
-    if ! docker-compose ps | grep -q "mongodb.*Up"; then
+    # Navigate to the database directory where docker-compose.yml is located
+    if ! docker-compose -f docker-compose.yml ps | grep -q "mongodb.*Up"; then
         print_warning "MongoDB service not running, starting..."
-        docker-compose up -d
+        docker-compose -f docker-compose.yml up -d
         sleep 10  # Wait for the containers to start
         
-        if docker-compose ps | grep -q "mongodb.*Up"; then
+        if docker-compose -f docker-compose.yml ps | grep -q "mongodb.*Up"; then
             print_success "MongoDB service started successfully"
         else
             print_error "MongoDB service failed to start"
-            docker-compose logs mongodb
+            docker-compose -f docker-compose.yml logs mongodb
             exit 1
         fi
     else
         print_success "MongoDB service is running"
     fi
-    cd ..
 }
 # Check Python Dependencies
 check_dependencies() {
@@ -62,12 +61,12 @@ check_dependencies() {
 # Start the API Service
 start_api() {
     print_info "Starting MongoDB API service..."
-    print_info "API Service Address: http://localhost:8001" # Corrected port number
-    print_info "API Documentation Address: http://localhost:8001/docs" # Corrected port number
+    print_info "API Service Address: http://localhost:8001"
+    print_info "API Documentation Address: http://localhost:8001/docs"
     print_info "Press Ctrl+C to stop the service"
     
     echo ""
-    cd /root/workspace/mongodb_api
+    # The mongodb_api.py is in the current directory (database/)
     python mongodb_api.py
 }
 # Main function
