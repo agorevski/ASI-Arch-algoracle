@@ -1,10 +1,10 @@
 class Config:
     """Configuration settings for the experiment."""
     # Target file
-    SOURCE_FILE: str = "evolve file"
+    SOURCE_FILE: str = "./pool/deltanet_base.py"
 
-    # Training script
-    BASH_SCRIPT: str = "your training script"
+    # Training script (use train_simple.py for testing without PyTorch)
+    BASH_SCRIPT: str = "python train.py"
 
     # Experiment results
     RESULT_FILE: str = "./files/analysis/loss.csv"
@@ -17,19 +17,19 @@ class Config:
     CODE_POOL: str = "./pool"
 
     # Maximum number of debug attempts
-    MAX_DEBUG_ATTEMPT: int = 5
+    MAX_DEBUG_ATTEMPT: int = 3
 
     # Maximum number of retry attempts
     MAX_RETRY_ATTEMPTS: int = 20
 
     # RAG service URL
-    RAG: str = "your rag url"
+    RAG: str = "http://127.0.0.1:13124"
 
     # Database URL
-    DATABASE: str = "your databse url"
+    DATABASE: str = "http://0.0.0.0:8001"
 
     # OpenAI API configuration
-    AZURE_ENDPOINT: str = "https://endpoint_here.openai.azure.com/"
-    AZURE_DEPLOYMENT: str = "deployment_here"
+    AZURE_ENDPOINT: str = "https://your_endpoint.openai.azure.com/"
+    AZURE_DEPLOYMENT: str = "your_deployment"
     API_VERSION: str = "2025-01-01-preview"
-    API_KEY: str = "api_key_kere"
+    API_KEY: str = "your_key"
