@@ -58,6 +58,7 @@ Our system demonstrates **continuous optimization capability**, consistently imp
   - [System Requirements](#system-requirements)
   - [Installation](#installation)
   - [Environment Setup](#environment-setup)
+  - [Database Initialization](#database-initialization)
   - [Running Architecture Discovery](#running-architecture-discovery)
 - [🔧 Framework Components](#-framework-components)
 - [Acknowledgement](#-acknowledgement)
@@ -117,8 +118,32 @@ The framework relies on Docker to run the Database and Cognition Base services i
     python rag_api.py
     ```
 
+#### Database Initialization
+Before running experiments, you need to seed the database with a baseline architecture. The ASI-Arch pipeline uses evolutionary algorithms that require at least one parent architecture to begin the discovery process.
+
+*In a new terminal*, run the database initialization script:
+```bash
+# Ensure you are in the asi-arch conda environment
+conda activate asi-arch
+
+# Initialize the database with the seed DeltaNet architecture
+python init_seed_architecture.py
+```
+
+This script will:
+- Add the baseline DeltaNet architecture to the database
+- Initialize the candidate pool with the seed architecture
+- Set up the necessary data structures for the evolutionary process
+
+**Verification**: The script will display status messages and confirm successful initialization. You should see:
+```
+✅ Seed element added successfully!
+✅ Updated candidate_storage.json
+✅ ASI-Arch initialization complete!
+```
+
 #### Running Architecture Discovery
-Once the backend services are running, you can start the main discovery pipeline.
+Once the backend services are running and the database is initialized, you can start the main discovery pipeline.
 
 *In a new terminal*, execute the following:
 ```bash
@@ -187,4 +212,4 @@ Please cite this work if it contributes to your research:
       primaryClass={cs.AI},
       url={https://arxiv.org/abs/2507.18074}, 
 }
-``` 
+```
