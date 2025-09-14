@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   mongodb:
-    image: dytt.online/library/mongo:7.0
+    image: mongo:7.0
     container_name: mongodb
     restart: unless-stopped
     environment:
@@ -20,7 +18,7 @@ services:
 
   # MongoDB Express - Web界面管理工具
   mongo-express:
-    image: dytt.online/library/mongo-express:1.0.2
+    image: mongo-express:1.0.2
     container_name: mongo-express
     restart: unless-stopped
     depends_on:
@@ -44,4 +42,4 @@ volumes:
 
 networks:
   mongodb_network:
-    driver: bridge 
+    driver: bridge

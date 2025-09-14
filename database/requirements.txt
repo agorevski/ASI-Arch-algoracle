@@ -25,3 +25,5 @@ python-json-logger>=2.0.0
 
 # CORS支持
 python-multipart>=0.0.6 
+
+tensorflow
