@@ -4,46 +4,24 @@ Verbose logging utilities for displaying model inputs/outputs and pipeline progr
 
 from datetime import datetime
 from typing import Any, Dict
+import traceback
+from utils.agent_logger import log_agent_run
 
 
 def log_model_input(agent_name: str, input_data: Any) -> None:
     """Log model input data verbosely to console."""
-    print(f"\n{'='*80}")
     print(f"🤖 MODEL INPUT: {agent_name}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"{'='*80}")
-    if isinstance(input_data, str):
-        print(f"Input Text ({len(input_data)} chars):")
-        if len(input_data) > 1000:
-            print(input_data[:500])
-            print(f"\n... [TRUNCATED - showing first 500 of {len(input_data)} chars] ...")
-            print(input_data[-500:])
-        else:
-            print(input_data)
-    else:
-        # Try to serialize the input data
-        try:
-            if hasattr(input_data, '__dict__'):
-                print("Input Object:")
-                for key, value in input_data.__dict__.items():
-                    if isinstance(value, str) and len(value) > 200:
-                        print(f"  {key}: {value[:100]}... [TRUNCATED - {len(value)} chars total]")
-                    else:
-                        print(f"  {key}: {value}")
-            else:
-                print(f"Input: {str(input_data)[:1000]}")
-        except Exception:
-            print(f"Input (serialization failed): {type(input_data).__name__}")
-    print(f"{'='*80}\n")
+    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\tInput Text ({len(input_data)} chars)")
 
 
 def log_model_output(agent_name: str, output_data: Any, success: bool = True) -> None:
     """Log model output data verbosely to console."""
     status = "✅ SUCCESS" if success else "❌ FAILED"
-    print(f"\n{'='*80}")
     print(f"🤖 MODEL OUTPUT: {agent_name} - {status}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"{'='*80}")
+    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    output_bytes = len(str(output_data).encode('utf-8'))
+    print(f"\tOutput Size: {output_bytes} bytes")
 
     if success:
         try:
@@ -65,72 +43,55 @@ def log_model_output(agent_name: str, output_data: Any, success: bool = True) ->
     else:
         print(f"Error: {output_data}")
 
-    print(f"{'='*80}\n")
-
 
 def log_database_operation(operation: str, details: Dict[str, Any]) -> None:
     """Log database operations verbosely."""
-    print(f"\n🗄️  DATABASE OPERATION: {operation}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print("-" * 60)
-
-    for key, value in details.items():
-        if isinstance(value, str) and len(value) > 300:
-            print(f"{key}: {value[:150]}... [TRUNCATED - {len(value)} chars total]")
-        elif isinstance(value, (list, tuple)) and len(value) > 5:
-            print(f"{key}: [{len(value)} items] {str(value[:3])}... [TRUNCATED]")
-        else:
-            print(f"{key}: {value}")
-    print("-" * 60)
+    print(f"🗄️  DATABASE OPERATION: {operation}")
+    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
 
 
 def log_file_operation(operation: str, file_path: str, content_preview: str = None, size: int = None) -> None:
     """Log file operations verbosely."""
-    print(f"\n📁 FILE OPERATION: {operation}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"📄 File: {file_path}")
-
+    print(f"📁 FILE OPERATION: {operation}")
+    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\t📄 File: {file_path}")
     if size is not None:
-        print(f"📊 Size: {size} bytes")
-
+        print(f"\t📊 Size: {size} bytes")
     if content_preview:
-        print("📋 Content Preview:")
+        print("\t📋 Content Preview:")
         if len(content_preview) > 500:
             print(content_preview[:250])
             print(f"... [TRUNCATED - showing first 250 of {len(content_preview)} chars] ...")
             print(content_preview[-250:])
         else:
             print(content_preview)
-    print("-" * 60)
 
 
 def log_training_progress(step: str, details: str, success: bool = None) -> None:
     """Log training progress verbosely."""
     status_icon = "🟢" if success else "🔴" if success is False else "🔄"
-    print(f"\n{status_icon} TRAINING: {step}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"{status_icon} TRAINING: {step}")
+    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
     if details:
         print(f"Details: {details}")
-    print("-" * 40)
 
 
 def log_error_context(error_source: str, error: Exception, context: Dict[str, Any] = None) -> None:
     """Log error with full context."""
-    print(f"\n❌ ERROR in {error_source}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"Error Type: {type(error).__name__}")
-    print(f"Error Message: {str(error)}")
+    print(f"❌ ERROR in {error_source}")
+    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\tError Type: {type(error).__name__}")
+    print(f"\tError Message: {str(error)}")
 
     if context:
-        print("Context:")
+        print("\tContext:")
         for key, value in context.items():
             if isinstance(value, str) and len(value) > 200:
-                print(f"  {key}: {value[:100]}... [TRUNCATED]")
+                print(f"\t  {key}: {value[:100]}... [TRUNCATED]")
             else:
-                print(f"  {key}: {value}")
+                print(f"\t  {key}: {value}")
 
-    import traceback
-    print("Traceback:")
+    print("\tTraceback:")
     print(traceback.format_exc())
     print("-" * 60)
 
@@ -141,7 +102,6 @@ def log_pipeline_step(step_name: str, details: str = "") -> None:
     print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
     if details:
         print(f"Details: {details}")
-    print("=" * 80)
 
 
 # Wrapper for the existing log_agent_run function to add verbose console output
@@ -149,7 +109,6 @@ async def verbose_log_agent_run(agent_name: str, agent, input_data: Any = None, 
     """
     Enhanced version of log_agent_run with verbose console output.
     """
-    from utils.agent_logger import log_agent_run
 
     # Log input verbosely
     log_model_input(agent_name, input_data)

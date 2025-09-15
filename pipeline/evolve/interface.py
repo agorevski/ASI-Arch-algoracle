@@ -13,7 +13,7 @@ async def evolve(context: str) -> Tuple[str, str]:
         with open(Config.SOURCE_FILE, 'r') as f:
             original_source = f.read()
 
-        log_file_operation("READ", Config.SOURCE_FILE, content_preview=original_source[:200], size=len(original_source))
+        log_file_operation("READ", Config.SOURCE_FILE, size=len(original_source))
         name, motivation = await gen(context)
 
         if await check_code_correctness(motivation):

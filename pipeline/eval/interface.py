@@ -86,7 +86,7 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
                     with open(Config.DEBUG_FILE, 'r', encoding='utf-8') as f:
                         debug_content = f.read()
 
-                    log_file_operation("READ", Config.DEBUG_FILE, content_preview=debug_content, size=len(debug_content))
+                    log_file_operation("READ", Config.DEBUG_FILE, size=len(debug_content))
 
                     previous_error = f"Training failed. Debug info:\n{debug_content}"
                 except Exception as e:
@@ -128,11 +128,9 @@ def save(name: str) -> None:
     with open(Config.SOURCE_FILE, "r", encoding='utf-8') as f:
         content = f.read()
 
-    log_file_operation("READ", Config.SOURCE_FILE, content_preview=content[:200], size=len(content))
-
     # Write to code pool
     output_path = f"{Config.CODE_POOL}/{name}.py"
     with open(output_path, "w", encoding='utf-8') as f:
         f.write(content)
 
-    log_file_operation("WRITE", output_path, content_preview=f"Saved experiment code for {name}", size=len(content))
+    log_file_operation("WRITE", output_path, f"Saved experiment code for {name}", size=len(content))

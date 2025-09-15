@@ -104,10 +104,25 @@ The framework relies on Docker to run the Database and Cognition Base services i
 The steps below discuss how to do this in a single WSL window with 3 terminals open, using tmux
 
 ```bash
+sudo apt install tmux
+sudo apt install nvitop
+
 tmux
 ctrl+a --> - # Create a horizontal window
 ctrl+a --> | # Split the bottom window vertically
+ctrl+a --> | # Split the bottom window vertically (3rd window)
 
+# Change the pane sizes to your liking
+Ctrl-a  ↑   # expand the pane upward
+Ctrl-a  ↓   # expand downward
+Ctrl-a  ←   # expand left
+Ctrl-a  →   # expand right
+```
+
+It will look something like this when set up effectively
+![alt text](./resources/wsl_console.png)
+
+```bash
 # Window 2 (Bottom left):
 # Start Cognition Base Service:
 conda activate asi-arch-cognition-base
@@ -115,7 +130,11 @@ cd cognition_base
 docker-compose up -d
 python rag_api.py
 
-# Window 3 (Bottom right):
+# Window 3 (Bottom middle):
+# Monitor GPU and CPU utilization
+nvitop
+
+# Window 4 (Bottom right):
 # Start Database Service:
 conda activate asi-arch-database
 cd database

@@ -17,7 +17,7 @@ class Config:
     CODE_POOL: str = "./pool"
 
     # Maximum number of debug attempts
-    MAX_DEBUG_ATTEMPT: int = 3
+    MAX_DEBUG_ATTEMPT: int = 5
 
     # Maximum number of retry attempts
     MAX_RETRY_ATTEMPTS: int = 20
@@ -30,15 +30,15 @@ class Config:
 
     # OpenAI API configuration
     AZURE_ENDPOINT: str = "https://your_endpoint.openai.azure.com/"
-    AZURE_DEPLOYMENT: str = "gpt-4.1"
-    AZURE_DEPLOYMENT_MODEL_JUDGER: str = "gpt-4.1"
-    AZURE_DEPLOYMENT_MODEL_ANALYZER: str = "o3"
-    AZURE_DEPLOYMENT_MODEL_CHECKER: str = "o3"
-    AZURE_DEPLOYMENT_MODEL_EVOLVER: str = "o3"
-    AZURE_DEPLOYMENT_MODEL_PLANNER: str = "o3"
-    AZURE_DEPLOYMENT_MODEL_SUMMARIZER: str = "gpt-4.1"
-    AZURE_DEPLOYMENT_MODEL_DEBUGGER: str = "gpt-4.1"
-    AZURE_DEPLOYMENT_MODEL_TRAINER: str = "gpt-4.1"
-    AZURE_DEPLOYMENT_MODEL_MOTIVATION_CHECKER: str = "gpt-4.1"
+    AZURE_DEPLOYMENT: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_JUDGER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_ANALYZER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_CHECKER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_EVOLVER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_PLANNER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_SUMMARIZER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_DEBUGGER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_TRAINER: str = "gpt-5"
+    AZURE_DEPLOYMENT_MODEL_MOTIVATION_CHECKER: str = "gpt-5"
     API_VERSION: str = "2025-01-01-preview"
     API_KEY: str = "your_key"
