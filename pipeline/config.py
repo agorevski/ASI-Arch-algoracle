@@ -4,7 +4,7 @@ class Config:
     SOURCE_FILE: str = "./pool/deltanet_base.py"
 
     # Training script (use train_simple.py for testing without PyTorch)
-    BASH_SCRIPT: str = "python train.py"
+    TRAINING_SCRIPT: str = "train.py"
 
     # Experiment results
     RESULT_FILE: str = "./files/analysis/loss.csv"
