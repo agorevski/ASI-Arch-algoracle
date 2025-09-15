@@ -55,7 +55,7 @@ Provide a structured analysis covering:
 - Identify motivation-implementation gaps
 - Judge plausibility of expected improvements
 
-**EXPERIMENTAL RESULTS ANALYSIS** 
+**EXPERIMENTAL RESULTS ANALYSIS**
 - Analyze performance across cognitive domains (reasoning, language understanding, specialized tasks)
 - Use descriptive language for outcomes (e.g., "commonsense reasoning improved significantly" vs "hellaswag score = X")
 - Compare with baselines using clear improvement/degradation statements

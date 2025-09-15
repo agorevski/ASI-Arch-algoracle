@@ -4,7 +4,7 @@ def Motivation_checker_input(context: str, motivation: str) -> str:
 
 ## TASK OVERVIEW
 **Objective**: Determine if the current motivation duplicates any existing research directions
-**Domain**: Linear Attention Research  
+**Domain**: Linear Attention Research
 **Decision Threshold**: Conservative (high bar for marking duplicates)
 
 ## TARGET MOTIVATION FOR ANALYSIS
@@ -34,7 +34,7 @@ For each historical motivation, evaluate:
 ### Step 3: Duplication Decision & Index Tracking
 **Mark as DUPLICATE only if ALL criteria are met:**
 - [ ] Identical core technical problem
-- [ ] Same fundamental solution approach  
+- [ ] Same fundamental solution approach
 - [ ] Complete scope and objective overlap
 - [ ] Equivalent research contribution
 

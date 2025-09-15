@@ -2,9 +2,11 @@ from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
 
+
 class DeduplicationOutput(BaseModel):
     name: str
     motivation: str
+
 
 # Deduplication Agent
 deduplication = Agent(
@@ -27,7 +29,7 @@ deduplication = Agent(
 - **Selective compilation**: Use @torch.compile only on main computational functions, avoid on utility functions to prevent graph issues
 
 ### CRITICAL: Tensor Operations Safety Standards:
-- **MANDATORY: Use einops.rearrange()**: Replace ALL tensor reshape operations (.view(), .reshape()) with einops.rearrange() 
+- **MANDATORY: Use einops.rearrange()**: Replace ALL tensor reshape operations (.view(), .reshape()) with einops.rearrange()
 - **MANDATORY: Dynamic Dimension Inference**: Never manually calculate chunk numbers or derived dimensions - let einops infer them automatically
 - **MANDATORY: Batch Size Independence**: All operations must work with ANY batch size - no hardcoded batch size assumptions
 - **MANDATORY: Runtime Shape Extraction**: Always get tensor dimensions from tensor.shape at runtime, never from config parameters
@@ -109,7 +111,6 @@ deduplication = Agent(
 - **CRITICAL: Robustness Implementation**: Use einops.rearrange() for ALL tensor reshaping and ensure batch size independence
 - **Genuine Innovation**: Implement approaches based on unexplored research foundations
 - **Breakthrough Potential**: Create code with clear pathways to significant performance improvements through novel mechanisms""",
-    
     output_type=DeduplicationOutput,
     model='o3',
     tools=[read_code_file, write_code_file]

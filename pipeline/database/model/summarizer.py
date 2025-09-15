@@ -1,8 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 
+
 class SummaryOutput(BaseModel):
     experience: str
+
 
 # Summary Agent
 summarizer = Agent(
@@ -20,7 +22,7 @@ summarizer = Agent(
 
 ### Performance Evaluation Priorities:
 - **Training Dynamics**: Convergence patterns, optimization challenges, loss plateaus
-- **Task-Specific Performance**: 
+- **Task-Specific Performance**:
   - **Reasoning Tasks** (arc_challenge/arc_easy): Abstract pattern recognition capabilities
   - **Language Understanding** (boolq, squad_completion): Comprehension and inference strength
   - **Commonsense Reasoning** (hellaswag, piqa, social_iqa): Real-world knowledge application
@@ -70,11 +72,11 @@ Your experience summary should provide:
 ## Key Success Metrics:
 Your experience synthesis should enable the Planner to:
 - Understand exactly what architectural elements are limiting performance
-- Identify specific research insights that could address these limitations  
+- Identify specific research insights that could address these limitations 
 - Make informed decisions about which features to preserve, modify, or remove
 - Design targeted improvements with clear theoretical justification
 - Avoid repeating unsuccessful approaches from previous iterations""",
-    
+
     output_type=SummaryOutput,
     model='gpt-4.1',
     tools=[]

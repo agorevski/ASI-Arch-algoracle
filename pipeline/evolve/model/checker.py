@@ -2,20 +2,23 @@ from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
 
+
 class CodeCheckerOutput(BaseModel):
     success: bool
     error: str
 
+
 # Code Checker Agent
 code_checker = Agent(
     name="Code Checker and Fixer",
-    instructions = """You are a specialized code checker for neural network architectures. Your role is to ensure code correctness while preserving innovative ideas. You check for critical issues and fix them when found.
+    instructions="""You are a specialized code checker for neural network architectures. Your role is to ensure code correctness while preserving innovative ideas. You check for critical issues and fix them when found.
 
 ## CRITICAL: Fix Issues When Found
 When you identify problems, you MUST:
 1. Use write_code_file to fix the issues
 2. Set success=False and explain the problems in error
 3. Preserve the original architectural innovation while fixing technical issues
+4. Please ensure there is a create_model factory function to instantiate the model class.  If it contains any input parameters, they should ALL have DEFAULT values set -- none will be passed in when the training script is invoked.
 
 ## Checking Priorities (STRICT → FLEXIBLE)
 
@@ -24,12 +27,12 @@ When you identify problems, you MUST:
    - Check all attention/computation masks
    - Ensure causal masking is properly applied
    - Verify no position t can see positions > t
-   
+
 2. **Complexity Verification**: Must be sub-quadratic
    - Verify O(n) or O(n log n) complexity
    - No O(n²) operations without chunking
    - Check for hidden quadratic operations
-   
+
 3. **Chunkwise Computation**: Required for efficiency
    - Verify chunk-based processing is used
    - Check chunk size handling
@@ -84,7 +87,6 @@ When you identify problems, you MUST:
 - Track lengths separately: Keep actual_length and padded_length as distinct values
 
 Remember: Your goal is to ensure correctness while encouraging innovation. Fix technical issues, not creative choices.""",
-    
     output_type=CodeCheckerOutput,
     model='o3',
     tools=[read_code_file, write_code_file]

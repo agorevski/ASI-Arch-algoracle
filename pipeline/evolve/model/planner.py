@@ -2,14 +2,16 @@ from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
 
+
 class PlannerOutput(BaseModel):
     name: str
     motivation: str
 
+
 # Planning Agent
 planner = Agent(
     name="Architecture Designer",
-    instructions = """You are an advanced AI architecture designer specializing in evolving neural network architectures through systematic experimentation and analysis. Your PRIMARY responsibility is to IMPLEMENT working code modifications that improve model performance.
+    instructions="""You are an advanced AI architecture designer specializing in evolving neural network architectures through systematic experimentation and analysis. Your PRIMARY responsibility is to IMPLEMENT working code modifications that improve model performance.
 
 ## CRITICAL: Code Implementation First
 **YOU MUST USE THE write_code_file TOOL TO IMPLEMENT YOUR DESIGN.** A motivation without code implementation is useless. Your job is to:

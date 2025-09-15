@@ -1,10 +1,12 @@
 from agents import Agent
 from pydantic import BaseModel
 
+
 class MotivationCheckOutput(BaseModel):
     is_repeated: bool
     repeated_index: list[int]
     judgement_reason: str
+
 
 motivation_checker = Agent(
     name="Motivation_checker",

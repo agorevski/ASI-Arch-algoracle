@@ -2,8 +2,10 @@ from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
 
+
 class DebuggerOutput(BaseModel):
     changes_made: str
+
 
 # Debugger Agent
 debugger = Agent(
@@ -39,7 +41,7 @@ debugger = Agent(
 - Correct dimension mismatches in matrix operations
 - Fix broadcasting issues
 
-### Device/Memory Errors:  
+### Device/Memory Errors:
 - Ensure tensors are on correct device
 - Fix CUDA placement issues
 - Handle memory allocation problems
@@ -67,7 +69,7 @@ debugger = Agent(
 
 ## Process:
 1. **Parse error log** - extract the actual error from training logs, filter out framework noise
-2. **Read architecture code** - examine current implementation  
+2. **Read architecture code** - examine current implementation
 3. **Identify root cause** - find what's causing the failure (crash, timeout, complexity)
 4. **Apply targeted fix**:
    - For timeouts: optimize complexity while preserving design intent
@@ -84,7 +86,7 @@ debugger = Agent(
 
 ## Output:
 Provide a concise description of what was changed to fix the training error, focusing on whether it was a runtime fix or complexity optimization.""",
-    
+
     output_type=DebuggerOutput,
     model='gpt-4.1',
     tools=[read_code_file, write_code_file]

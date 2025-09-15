@@ -9,7 +9,7 @@ from config import Config
 from database import DataElement
 from database.mongo_database import create_client
 from tools.tools import run_rag
-from utils.agent_logger import log_agent_run
+from utils.verbose_logger import verbose_log_agent_run, log_file_operation, log_error_context, log_database_operation
 from .model import analyzer
 from .prompts import Analyzer_input
 
@@ -32,50 +32,56 @@ async def analyse(
 ) -> DataElement:
     """Analyze experiment results and generate comprehensive analysis."""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     # Extract original name (remove timestamp)
     original_name = extract_original_name(name)
-    
+
     # Get program content
+    log_file_operation("READ", program_file_path, "Reading program file for analysis")
     program = _read_program_file(program_file_path)
-    
+
     # Get training and test result content
+    log_file_operation("READ", result_file_path, "Reading training results")
     train_result = _read_csv_file(result_file_path)
+
+    log_file_operation("READ", result_file_path_test, "Reading test results")
     test_result = _read_csv_file(result_file_path_test)
-    
+
     # Create result dictionary
-    result_dict = {
-        'train': train_result,
-        'test': test_result
-    }
-    
+    result_dict = {'train': train_result, 'test': test_result}
+
     # Use timestamped name for lookup, but replace with original name
     increment(result_dict, name, original_name, 'train')
     increment(result_dict, name, original_name, 'test')
-    
+
+    log_database_operation("Reference Elements Retrieval", {"parent_index": parent, "operation": "get_analyse_elements"})
+
     db = create_client()
     ref_elements = db.get_analyse_elements(parent)
-    result_content = f"""### Current Experiment Results: 
+
+    log_database_operation("Reference Elements Retrieved", {"direct_parent": bool(ref_elements.get("direct_parent")), "strongest_siblings": len(ref_elements.get("strongest_siblings", [])), "grandparent": bool(ref_elements.get("grandparent"))})
+
+    result_content = f"""### Current Experiment Results:
     **Training Progression**: {result_dict["train"]}
     **Evaluation Results**: {result_dict["test"]}
     """
-    
+
     analysis = await run_analyzer(original_name, result_content, motivation, ref_elements)
-    
+
     # Get paper content
     paper_query = analysis.experimental_results_analysis
     paper_result = run_rag(paper_query)
-    
+
     paper_content = paper_result['results']  # Further refine content in subsequent processing
     content_str = str(paper_content)
     analysis_result = (
-        analysis.design_evaluation + 
+        analysis.design_evaluation +
         analysis.experimental_results_analysis +
         analysis.expectation_vs_reality_comparison +
         analysis.theoretical_explanation_with_evidence +
         analysis.synthesis_and_insights
     )
-    
+
     result = DataElement(
         time=current_time,
         name=original_name,  # Use original name (without timestamp)
@@ -87,7 +93,7 @@ async def analyse(
         log="",
         parent=parent
     )
-    
+
     return result
 
 
@@ -122,11 +128,11 @@ def increment(result: dict, timestamped_name: str, original_name: str, key: str)
     csv_data = result[key]
     string_io = io.StringIO(csv_data)
     reader = csv.reader(string_io)
-    
+
     try:
         header = next(reader)
         matched_row = None
-        
+
         for row in reader:
             if row and row[0].strip() == timestamped_name:
                 matched_row = row
@@ -134,22 +140,22 @@ def increment(result: dict, timestamped_name: str, original_name: str, key: str)
                 if matched_row:
                     matched_row[0] = original_name
                 break
-        
+
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(header)
         if matched_row:
             writer.writerow(matched_row)
-        
+
         result[key] = output.getvalue().strip()
     except StopIteration:
         pass
 
 
 async def run_analyzer(
-    name: str, 
-    result_content: str, 
-    motivation: str, 
+    name: str,
+    result_content: str,
+    motivation: str,
     ref_elements: dict
 ) -> Optional[Any]:
     """Run analyzer with retry mechanism."""
@@ -157,25 +163,27 @@ async def run_analyzer(
 
     for attempt in range(Config.MAX_RETRY_ATTEMPTS):
         try:
-            analyzer_result = await log_agent_run(
+            analyzer_result = await verbose_log_agent_run(
                 "analyzer",
                 analyzer,
                 Analyzer_input(name, result_content, motivation, ref_context)
             )
             return analyzer_result.final_output
-            
+
         except exceptions.MaxTurnsExceeded as e:
+            log_error_context("Analyzer", e, {"attempt": attempt + 1, "name": name})
             print(f"Analyzer exceeded maximum turns, attempt {attempt + 1}")
         except Exception as e:
+            log_error_context("Analyzer", e, {"attempt": attempt + 1, "name": name})
             print(f"Analyzer error on attempt {attempt + 1}: {e}")
-    
+
     return None
 
 
 def _build_reference_context(ref_elements: dict) -> str:
     """Build reference context string from reference elements."""
     ref_context = "# Reference Experiments\n"
-    
+
     if ref_elements.get("direct_parent"):
         ref_context += "### Direct Parent\n"
         ref_context += _ref_elements_context(DataElement(**ref_elements["direct_parent"]))
@@ -191,7 +199,7 @@ def _build_reference_context(ref_elements: dict) -> str:
         ref_context += "### Grandparent\n"
         ref_context += _ref_elements_context(DataElement(**ref_elements["grandparent"]))
         ref_context += "\n\n"
-    
+
     return ref_context
 
 

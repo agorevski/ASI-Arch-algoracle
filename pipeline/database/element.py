@@ -20,11 +20,11 @@ class DataElement:
     parent: Optional[int] = None
     index: Optional[int] = None
     summary: Optional[str] = None
-    
+
     def to_dict(self) -> Dict:
         """Convert DataElement instance to dictionary."""
         return asdict(self)
-    
+
     async def get_context(self) -> str:
         """Generate enhanced context with structured experimental evidence presentation."""
         summary = await log_agent_run(

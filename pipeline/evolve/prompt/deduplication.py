@@ -86,7 +86,7 @@ Output: Novel architectural concept with clear differentiation rationale
 Action: Use write_code_file to implement breakthrough architecture
 Focus: Maintaining all constraints while achieving paradigm shift
 Output: Working code that represents genuine innovation
-Requirements: 
+Requirements:
 - All tensor operations use einops.rearrange()
 - Batch size independent design
 - Cross-environment compatibility
