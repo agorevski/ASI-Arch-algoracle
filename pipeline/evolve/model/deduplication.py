@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class DeduplicationOutput(BaseModel):
@@ -112,6 +116,6 @@ deduplication = Agent(
 - **Genuine Innovation**: Implement approaches based on unexplored research foundations
 - **Breakthrough Potential**: Create code with clear pathways to significant performance improvements through novel mechanisms""",
     output_type=DeduplicationOutput,
-    model='o3',
+    model=Config.AZURE_DEPLOYMENT_MODEL_EVOLVER,
     tools=[read_code_file, write_code_file]
 )

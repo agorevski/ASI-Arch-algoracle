@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from openai import AsyncAzureOpenAI
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'pipeline'))
+from config import Config
 
 
 class ModelJudgementOutput(BaseModel):
@@ -52,8 +56,7 @@ model_judger = Agent(
 - Explain why the model deserves its score tier
 
 Remember: Your goal is to create meaningful differentiation between models, not to give everyone a "good" score.""",
-    
-    output_type=ModelJudgementOutput,  
-    model='gpt-4.1',
+    output_type=ModelJudgementOutput,
+    model=Config.AZURE_DEPLOYMENT_MODEL_JUDGER,
     tools=[],
 )

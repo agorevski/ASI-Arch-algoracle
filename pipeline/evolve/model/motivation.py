@@ -1,5 +1,9 @@
 from agents import Agent
 from pydantic import BaseModel
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class MotivationCheckOutput(BaseModel):
@@ -54,5 +58,5 @@ Analyze a given motivation statement against a collection of previously recorded
     """,
     output_type=MotivationCheckOutput,
     tools=[],
-    model='gpt-4.1',
+    model=Config.AZURE_DEPLOYMENT_MODEL_MOTIVATION_CHECKER,
 )

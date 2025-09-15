@@ -3,7 +3,7 @@ class Config:
     # Target file
     SOURCE_FILE: str = "./pool/deltanet_base.py"
 
-    # Training script (use train_simple.py for testing without PyTorch)
+    # Training script (should be in the /pipeline folder)
     TRAINING_SCRIPT: str = "train.py"
 
     # Experiment results
@@ -30,6 +30,15 @@ class Config:
 
     # OpenAI API configuration
     AZURE_ENDPOINT: str = "https://your_endpoint.openai.azure.com/"
-    AZURE_DEPLOYMENT: str = "your_deployment"
+    AZURE_DEPLOYMENT: str = "gpt-4.1"
+    AZURE_DEPLOYMENT_MODEL_JUDGER: str = "gpt-4.1"
+    AZURE_DEPLOYMENT_MODEL_ANALYZER: str = "o3"
+    AZURE_DEPLOYMENT_MODEL_CHECKER: str = "o3"
+    AZURE_DEPLOYMENT_MODEL_EVOLVER: str = "o3"
+    AZURE_DEPLOYMENT_MODEL_PLANNER: str = "o3"
+    AZURE_DEPLOYMENT_MODEL_SUMMARIZER: str = "gpt-4.1"
+    AZURE_DEPLOYMENT_MODEL_DEBUGGER: str = "gpt-4.1"
+    AZURE_DEPLOYMENT_MODEL_TRAINER: str = "gpt-4.1"
+    AZURE_DEPLOYMENT_MODEL_MOTIVATION_CHECKER: str = "gpt-4.1"
     API_VERSION: str = "2025-01-01-preview"
     API_KEY: str = "your_key"

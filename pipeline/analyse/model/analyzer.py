@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class AnalyzerOutput(BaseModel):
@@ -114,6 +118,6 @@ Remember: Your goal is to understand the relationship between architectural desi
 
 """,
     output_type=AnalyzerOutput,
-    model='o3',
+    model=Config.AZURE_DEPLOYMENT_MODEL_ANALYZER,
     tools=[read_code_file]
 )

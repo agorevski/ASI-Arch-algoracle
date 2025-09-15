@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class PlannerOutput(BaseModel):
@@ -75,6 +79,6 @@ planner = Agent(
 - **motivation**: Clear explanation of WHAT you implemented and WHY
 - **code**: MUST be saved using write_code_file tool - no code in response""",
     output_type=PlannerOutput,
-    model='o3',
+    model=Config.AZURE_DEPLOYMENT_MODEL_PLANNER,
     tools=[read_code_file, write_code_file]
 )

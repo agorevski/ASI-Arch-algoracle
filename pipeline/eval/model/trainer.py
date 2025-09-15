@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from tools import run_training_script
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class TrainingResultOutput(BaseModel):
@@ -22,5 +26,5 @@ trainer = Agent(
     Your error explanation should be helpful for debugging and fixing the issue.""",
     tools=[run_training_script],
     output_type=TrainingResultOutput,
-    model="gpt-4.1"
+    model=Config.AZURE_DEPLOYMENT_MODEL_TRAINER
 )

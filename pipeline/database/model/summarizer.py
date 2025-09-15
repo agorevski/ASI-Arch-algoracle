@@ -1,5 +1,9 @@
 from agents import Agent
 from pydantic import BaseModel
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class SummaryOutput(BaseModel):
@@ -78,6 +82,6 @@ Your experience synthesis should enable the Planner to:
 - Avoid repeating unsuccessful approaches from previous iterations""",
 
     output_type=SummaryOutput,
-    model='gpt-4.1',
+    model=Config.AZURE_DEPLOYMENT_MODEL_SUMMARIZER,
     tools=[]
 )

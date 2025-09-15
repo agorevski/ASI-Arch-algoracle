@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class DebuggerOutput(BaseModel):
@@ -86,8 +90,7 @@ debugger = Agent(
 
 ## Output:
 Provide a concise description of what was changed to fix the training error, focusing on whether it was a runtime fix or complexity optimization.""",
-
     output_type=DebuggerOutput,
-    model='gpt-4.1',
+    model=Config.AZURE_DEPLOYMENT_MODEL_DEBUGGER,
     tools=[read_code_file, write_code_file]
 )

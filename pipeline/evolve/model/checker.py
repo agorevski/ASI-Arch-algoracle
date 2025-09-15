@@ -1,6 +1,10 @@
 from agents import Agent
 from pydantic import BaseModel
 from tools import read_code_file, write_code_file
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config import Config
 
 
 class CodeCheckerOutput(BaseModel):
@@ -88,6 +92,6 @@ When you identify problems, you MUST:
 
 Remember: Your goal is to ensure correctness while encouraging innovation. Fix technical issues, not creative choices.""",
     output_type=CodeCheckerOutput,
-    model='o3',
+    model=Config.AZURE_DEPLOYMENT_MODEL_CHECKER,
     tools=[read_code_file, write_code_file]
 )
