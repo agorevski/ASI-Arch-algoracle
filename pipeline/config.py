@@ -42,3 +42,9 @@ class Config:
     AZURE_DEPLOYMENT_MODEL_MOTIVATION_CHECKER: str = "gpt-5"
     API_VERSION: str = "2025-01-01-preview"
     API_KEY: str = "your_key"
+
+    # AML Configurations
+    AML_SUBSCRIPTION_ID: str = "your_subscription_id"
+    AML_RESOURCE_GROUP: str = "your_resource_group"
+    AML_WORKSPACE_NAME: str = "your_workspace_name"
+    AML_CLUSTER_NAME: str = "your_cluster_name"
