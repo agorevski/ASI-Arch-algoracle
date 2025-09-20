@@ -76,13 +76,25 @@ Our system demonstrates **continuous optimization capability**, consistently imp
 
     ```bash
     sudo apt update
+
+    # Helpful tooling
     sudo apt install tmux -y
+    sudo apt install nvitop
+    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+    # Install NVIDIA CUDA Drivers - Example for Ubuntu 24.04
+    sudo apt-get update
+    sudo apt-get install -y wget gnupg
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+    sudo dpkg -i cuda-keyring_1.1-1_all.deb
+    sudo apt-get update
+    sudo apt-get -y install cuda
 
     # Pipeline Component (Main runner)
     conda create -n asi-arch python=3.10
     conda activate asi-arch
-    pip install -r requirements.txt
     pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu124
+    pip install -r requirements.txt
     conda deactivate
 
     # Database Component
@@ -104,9 +116,6 @@ The framework relies on Docker to run the Database and Cognition Base services i
 The steps below discuss how to do this in a single WSL window with 3 terminals open, using tmux
 
 ```bash
-sudo apt install tmux
-sudo apt install nvitop
-
 tmux
 ctrl+a --> - # Create a horizontal window
 ctrl+a --> | # Split the bottom window vertically

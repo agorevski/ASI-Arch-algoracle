@@ -101,7 +101,7 @@ starlette
 sympy
 termcolor
 tokenizers
-torch
+# torch - check readme
 torchaudio
 torchmetrics
 torchvision
