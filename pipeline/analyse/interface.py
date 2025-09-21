@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 import re
 from datetime import datetime
 from typing import Optional, Any
@@ -30,6 +31,11 @@ async def analyse(
     result_file_path_test: str = Config.RESULT_FILE_TEST,
     parent: int = None
 ) -> DataElement:
+
+    data_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', name, 'named-outputs', 'output_folder')
+    result_file_path = os.path.join(data_folder_path, result_file_path)
+    result_file_path_test = os.path.join(data_folder_path, result_file_path_test)
+
     """Analyze experiment results and generate comprehensive analysis."""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

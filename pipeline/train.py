@@ -71,7 +71,7 @@ class DefaultTrainingPipeline(TrainingPipeline):
             seq_len=self.config.seq_len,
             size=self.config.dataset_size
         )
-
+        
     def train_model(self, model: nn.Module, train_loader: DataLoader) -> List[Tuple[int, float]]:
         """Train the model and return loss history"""
         model = model.to(self.device)
@@ -165,6 +165,7 @@ def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='Train neural architecture')
     parser.add_argument('--model_name', type=str, required=True, help='Model name for results')
+    parser.add_argument('--sanity_test', type=str, default='True', help='Sanity test training')
     parser.add_argument('--model_file', type=str, default='pool/deltanet_base.py', help='Path to model file')
     parser.add_argument('--vocab_size', type=int, default=1000, help='Vocabulary size')
     parser.add_argument('--seq_len', type=int, default=128, help='Sequence length')
@@ -175,7 +176,17 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('--device', type=str, default='auto', help='Device to use (cpu, cuda, auto)')
     parser.add_argument('--dataset_size', type=int, default=10000, help='Size of training dataset')
     parser.add_argument('--output_dir', type=str, default='files/analysis', help='Output directory for results')
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.sanity_test.lower() == 'true':
+        logger.info("Sanity Testing Enabled !! Overriding parameters for a quick training session ..")
+        args.vocab_size = 4
+        args.seq_length = 16
+        args.batch_size = 32
+        args.num_steps = 2
+        args.warmup_steps = 2
+        args.dataset_size = 2
+    return args
 
 
 def main():

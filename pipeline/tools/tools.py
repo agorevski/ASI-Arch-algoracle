@@ -1,3 +1,4 @@
+import datetime
 import logging
 import requests
 import os
@@ -51,16 +52,28 @@ def run_training_script(name: str, script_path: str) -> Dict[str, Any]:
         script_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), '..', script_path)
 
-        args = ['python', script_path, '--model_name', name]
-        print(args)
-
-        # Use Popen to capture output in real-time
+        args = ['python', script_path, '--model_name', name, '--sanity_test', True]
+        logging.info(args)
         process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
-
+        start_time = datetime.datetime.now()
         output_lines = []
         # Print output in real-time as it's generated
         for line in iter(process.stdout.readline, ''):
-            print(line.strip())
+            logging.info(line.strip())
+            output_lines.append(line.strip())
+            cur_time = datetime.datetime.now()
+            if cur_time - start_time > datetime.timedelta(seconds=60):  # Run for up to 60 seconds..
+                logging.info("Local process is working, switching to AML...")
+                process.kill()
+                break
+        process.wait()
+
+        # Start a fresh proc that schedules an AML job for a complete training session
+        args = ['python', './utils/schedule_aml_pipeline.py', '--model_name', name]
+        logging.info(args)
+        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
+        for line in iter(process.stdout.readline, ''):
+            logging.info(line.strip())
             output_lines.append(line.strip())
 
         process.wait()

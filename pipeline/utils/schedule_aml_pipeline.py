@@ -13,10 +13,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import Config
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s-%(name)s-%(levelname)s-%(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
+logger = logging.getLogger(__name__)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -32,16 +30,6 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def configure_logging() -> None:
-    log_handlers = []
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    log_handlers.append(console_handler)
-    logging.basicConfig(
-        level=logging._nameToLevel["INFO"],
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-        handlers=log_handlers
-        )
     # Suppress noisy logs from azure, urllib3, msrest, etc.
     logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
@@ -140,13 +128,28 @@ if __name__ == "__main__":
     # Get the completed job to access outputs
     completed_job = ml_client.jobs.get(job.name)
 
+    # Get error logs if they exist
+    if completed_job.status.lower() in ['failed', 'canceled', 'error']:
+        logging.error(f"Job failed with status: {completed_job.status}")
+        try:
+            # Get job logs
+            logs = ml_client.jobs.get_log(name=job.name)
+            if logs:
+                logging.error(f"Job error logs:\n{logs}")
+            else:
+                logging.error("No error logs available")
+        except Exception as e:
+            logging.error(f"Failed to retrieve error logs: {e}")
+    else:
+        logging.info(f"Job completed with status: {completed_job.status}")
+
     # Download the output from output_folder
     if hasattr(completed_job, 'outputs') and 'output_folder' in completed_job.outputs:
         output_uri = completed_job.outputs['output_folder']
         logging.info(f"Downloading output from URI: {output_uri}")
 
         # Create local download directory
-        download_path = os.path.join(os.path.dirname(__file__), '..', '..', f"job_outputs_{job_identifier}_{args.model_name}")
+        download_path = os.path.join(os.path.dirname(__file__), '..', '..', args.model_name)
         os.makedirs(download_path, exist_ok=True)
 
         # Download the output
