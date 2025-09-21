@@ -7,6 +7,7 @@ This script adds the baseline DeltaNet architecture to the database to start exp
 import json
 import asyncio
 from datetime import datetime
+import logging
 from pathlib import Path
 import requests
 
@@ -152,19 +153,20 @@ The goal is to push the boundaries of what's possible with efficient sequence mo
         "summary": "Baseline DeltaNet architecture with linear attention and delta rule mechanism. Serves as the foundation for ASI-Arch evolutionary experiments."
     }
 
+
 async def add_seed_to_database():
     """Add the seed element to the database via API"""
-    
-    print("Creating seed DeltaNet element...")
+
+    logging.info("Creating seed DeltaNet element...")
     element = create_seed_element()
-    
+
     # API endpoint
     url = "http://localhost:8001/elements"
-    
+
     try:
         print("Sending seed element to database...")
         response = requests.post(url, json=element, timeout=30)
-        
+
         if response.status_code == 200:
             result = response.json()
             print(f"✅ Seed element added successfully!")

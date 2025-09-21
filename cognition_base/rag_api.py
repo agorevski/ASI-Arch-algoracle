@@ -9,14 +9,17 @@ from flask_cors import CORS
 import logging
 import traceback
 from rag_service import OpenSearchRAGService
+
+
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
 logger = logging.getLogger(__name__)
 # Create Flask application
 app = Flask(__name__)
 CORS(app)  # Enable Cross-Origin Resource Sharing (CORS)
 # Global RAG service instance
 rag_service = None
+
 
 def init_rag_service():
     """Initialize the RAG service"""
@@ -235,21 +238,22 @@ def api_info():
         }
     })
 
+
 if __name__ == '__main__':
     print("Starting RAG API service...")
     print("Initializing RAG Service...")
-    
+
     # Initialize the RAG service before starting the Flask application
     success = init_rag_service()
     if not success:
         print("❌ RAG service initialization failed, please check the logs")
         exit(1)
-    
+
     print("✅ RAG service initialized successfully")
     print("API Documentation: http://localhost:5000/")
     print("Health Check: http://localhost:5000/health")
     print("Statistics: http://localhost:5000/stats")
-    
+
     app.run(
         host='0.0.0.0',
         port=13142,

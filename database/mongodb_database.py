@@ -37,8 +37,8 @@ class MongoDatabase:
         self.lock = threading.RLock()
         
         # Set up logging
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
+        logger = logging.getLogger(__name__)
         
         # Initialize MongoDB connection
         self._initialize_connection(username, password)
