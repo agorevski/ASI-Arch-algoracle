@@ -1,0 +1,23 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+type: command
+
+name: aml_training_component
+display_name: ASI-Arch Training Run
+description: This component runs training on an ASI-Arch proposed model.
+version: 0.0.1
+
+inputs:
+  model_name:
+    type: string
+    description: Model name or path
+
+outputs:
+  output_folder:
+    type: uri_folder
+
+code: ../
+
+environment: azureml://registries/rai-models-dev-registry/environments/lec-submission-env/versions/7
+
+command: >-
+  pip install einops && python train.py --model_name ${{inputs.model_name}}
