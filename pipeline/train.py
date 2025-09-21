@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 from training_base import TrainingPipeline, TrainingConfig
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -121,7 +121,7 @@ class DefaultTrainingPipeline(TrainingPipeline):
             scheduler.step()
 
             # Log progress
-            if step % 100 == 0:
+            if step % 10 == 0:
                 logger.info("Step %d: Loss = %.4f", step, loss.item())
                 loss_history.append((step, loss.item()))
 
