@@ -117,15 +117,15 @@ The steps below discuss how to do this in a single WSL window with 3 terminals o
 
 ```bash
 tmux
-ctrl+a --> - # Create a horizontal window
-ctrl+a --> | # Split the bottom window vertically
-ctrl+a --> | # Split the bottom window vertically (3rd window)
+ctrl+b --> \" # Create a horizontal window
+ctrl+b --> % # Split the bottom window vertically
+ctrl+b --> % # Split the bottom window vertically (3rd window)
 
 # Change the pane sizes to your liking
-Ctrl-a  ↑   # expand the pane upward
-Ctrl-a  ↓   # expand downward
-Ctrl-a  ←   # expand left
-Ctrl-a  →   # expand right
+Ctrl+b  ↑   # expand the pane upward
+Ctrl+b  ↓   # expand downward
+Ctrl+b  ←   # expand left
+Ctrl+b  →   # expand right
 ```
 
 It will look something like this when set up effectively
