@@ -11,13 +11,14 @@ from agents import Runner
 import csv
 import io
 
+
 class AgentLogger:
     """Agent call logger"""
-    
-    def __init__(self, log_dir: str = "logs/agent_calls"):
+
+    def __init__(self, log_dir: str = "../logs/agent_calls"):
         """
         Initializes the logger
-        
+
         Args:
             log_dir: Directory to store log files
         """
@@ -25,10 +26,10 @@ class AgentLogger:
         self.detailed_log_dir = self.log_dir / "detailed"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.detailed_log_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create the main log file
         self.main_log_file = self.log_dir / "agent_calls.log"
-        
+
         # Pipeline related
         self.current_pipeline_id: Optional[str] = None
         self.current_pipeline_dir: Optional[Path] = None
@@ -534,12 +535,13 @@ class AgentLogger:
 
 # Create a global logger instance
 _global_logger = None
-def get_logger(log_dir: str = "logs/agent_calls") -> AgentLogger:
+def get_logger(log_dir: str = "../logs/agent_calls") -> AgentLogger:
     """Gets the global logger instance"""
     global _global_logger
     if _global_logger is None:
         _global_logger = AgentLogger(log_dir)
     return _global_logger
+
 async def log_agent_run(agent_name: str, agent, input_data: Any = None, **kwargs) -> Any:
     """
     Convenience function: log and execute an agent call

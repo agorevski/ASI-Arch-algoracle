@@ -9,7 +9,7 @@ from agents import Runner
 class AgentLogger:
     """Agent call logger."""
 
-    def __init__(self, log_dir: str = "logs/agent_calls"):
+    def __init__(self, log_dir: str = "../logs/agent_calls"):
         """
         Initialize logger.
 
@@ -620,7 +620,7 @@ class AgentLogger:
 _global_logger = None
 
 
-def get_logger(log_dir: str = "logs/agent_calls") -> AgentLogger:
+def get_logger(log_dir: str = "../logs/agent_calls") -> AgentLogger:
     """Get global logger instance."""
     global _global_logger
     if _global_logger is None:

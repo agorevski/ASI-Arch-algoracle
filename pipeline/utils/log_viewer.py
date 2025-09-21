@@ -21,7 +21,7 @@ from agent_logger import AgentLogger
 
 
 class LogViewer:
-    def __init__(self, log_dir: str = "logs/agent_calls"):
+    def __init__(self, log_dir: str = "../logs/agent_calls"):
         self.log_dir = Path(log_dir)
         self.main_log_file = self.log_dir / "agent_calls.log"
         self.detailed_dir = self.log_dir / "detailed"
@@ -329,7 +329,7 @@ def main():
     parser.add_argument('--failed', action='store_true', help='Show failed calls')
     parser.add_argument('--detail', type=str, help='Show specific call details')
     parser.add_argument('--recent', type=int, help='Show recent N calls')
-    parser.add_argument('--log-dir', type=str, default='logs/agent_calls', help='Log directory path')
+    parser.add_argument('--log-dir', type=str, default='../logs/agent_calls', help='Log directory path')
 
     # New pipeline options
     parser.add_argument('--pipelines', action='store_true', help='List all pipelines')
