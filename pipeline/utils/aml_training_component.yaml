@@ -20,4 +20,4 @@ code: ../
 environment: azureml://registries/rai-models-dev-registry/environments/lec-submission-env/versions/7
 
 command: >-
-  pip install einops && python train.py --model_name ${{inputs.model_name}}
+  pip install einops && python train.py --model_name ${{inputs.model_name}} --output_dir ${{outputs.output_folder}}

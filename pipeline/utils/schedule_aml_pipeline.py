@@ -56,7 +56,7 @@ def create_pipeline_job(component_inputs: Dict) -> object:
         run_lec_func = load_component(
             source=os.path.join(os.path.dirname(__file__), "aml_training_component.yaml"))
         run_step = run_lec_func(model_name=model_name)
-        return {"raw_results": run_step.outputs.output_folder}
+        return {"output_folder": run_step.outputs.output_folder}
     return training_job_wrapper(model_name=component_inputs['model_name'])
 
 
@@ -140,17 +140,17 @@ if __name__ == "__main__":
     # Get the completed job to access outputs
     completed_job = ml_client.jobs.get(job.name)
 
-    # Download the output from raw_results
-    if hasattr(completed_job, 'outputs') and 'raw_results' in completed_job.outputs:
-        output_uri = completed_job.outputs['raw_results']
+    # Download the output from output_folder
+    if hasattr(completed_job, 'outputs') and 'output_folder' in completed_job.outputs:
+        output_uri = completed_job.outputs['output_folder']
         logging.info(f"Downloading output from URI: {output_uri}")
 
         # Create local download directory
-        download_path = os.path.join(os.path.dirname(__file__), f"job_outputs_{job_identifier}")
+        download_path = os.path.join(os.path.dirname(__file__), '..', '..', f"job_outputs_{job_identifier}_{args.model_name}")
         os.makedirs(download_path, exist_ok=True)
 
         # Download the output
-        ml_client.jobs.download(name=job.name, download_path=download_path, output_name="raw_results")
+        ml_client.jobs.download(name=job.name, download_path=download_path, output_name="output_folder")
         logging.info(f"Output downloaded to: {download_path}")
     else:
-        logging.error("raw_results output not found in completed job")
+        logging.error("output_folder output not found in completed job")
