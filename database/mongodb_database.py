@@ -2,6 +2,7 @@ import logging
 import threading
 import csv
 import io
+import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pymongo import MongoClient, ASCENDING
@@ -38,7 +39,6 @@ class MongoDatabase:
         
         # Set up logging
         logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
-        logger = logging.getLogger(__name__)
         
         # Initialize MongoDB connection
         self._initialize_connection(username, password)
@@ -77,7 +77,7 @@ class MongoDatabase:
             
             # Test the connection
             self.client.admin.command('ping')
-            self.logger.info("MongoDB connection successful")
+            logging.info("MongoDB connection successful")
             
             # Get the database and collection
             self.db: Database = self.client[self.database_name]
@@ -87,10 +87,10 @@ class MongoDatabase:
             self._create_indexes()
             
         except ConnectionFailure as e:
-            self.logger.error(f"MongoDB connection failed: {e}")
+            logging.error(f"MongoDB connection failed: {e}")
             raise
         except Exception as e:
-            self.logger.error(f"MongoDB initialization failed: {e}")
+            logging.error(f"MongoDB initialization failed: {e}")
             raise
     
     def _setup_candidate_manager_callbacks(self):
@@ -102,9 +102,9 @@ class MongoDatabase:
                 get_element_by_index_func=self.get_by_index,
                 update_element_score_func=self.update_element_score
             )
-            self.logger.info("Candidate manager callbacks set up")
+            logging.info("Candidate manager callbacks set up")
         except Exception as e:
-            self.logger.warning(f"Failed to set candidate manager callbacks: {e}")
+            logging.warning(f"Failed to set candidate manager callbacks: {e}")
     
     def _create_indexes(self):
         """Creates necessary indexes"""
@@ -126,46 +126,46 @@ class MongoDatabase:
             self.collection.create_index([("index", ASCENDING), ("name", ASCENDING)])
             self.collection.create_index([("parent", ASCENDING), ("index", ASCENDING)])
             
-            self.logger.info("Indexes created")
+            logging.info("Indexes created")
             
         except Exception as e:
-            self.logger.warning(f"Failed to create indexes: {e}")
+            logging.warning(f"Failed to create indexes: {e}")
     
     def _validate_element(self, element: DataElement) -> bool:
         """Validates a data element"""
         if not element.name or not isinstance(element.name, str):
-            self.logger.error("Data validation failed: name field is empty or of incorrect type")
+            logging.error("Data validation failed: name field is empty or of incorrect type")
             return False
         if not element.time or not isinstance(element.time, str):
-            self.logger.error("Data validation failed: time field is empty or of incorrect type")
+            logging.error("Data validation failed: time field is empty or of incorrect type")
             return False
         if not element.program or not isinstance(element.program, str):
-            self.logger.error("Data validation failed: program field is empty or of incorrect type")
+            logging.error("Data validation failed: program field is empty or of incorrect type")
             return False
         if not element.analysis or not isinstance(element.analysis, str):
-            self.logger.error("Data validation failed: analysis field is empty or of incorrect type")
+            logging.error("Data validation failed: analysis field is empty or of incorrect type")
             return False
         if not element.result or not isinstance(element.result, dict):
-            self.logger.error("Data validation failed: result field is empty or of incorrect type (should be a dictionary)")
+            logging.error("Data validation failed: result field is empty or of incorrect type (should be a dictionary)")
             return False
         if not element.cognition or not isinstance(element.cognition, str):
-            self.logger.error("Data validation failed: cognition field is empty or of incorrect type")
+            logging.error("Data validation failed: cognition field is empty or of incorrect type")
             return False
         if not element.log or not isinstance(element.log, str):
-            self.logger.error("Data validation failed: log field is empty or of incorrect type")
+            logging.error("Data validation failed: log field is empty or of incorrect type")
             return False
         if not element.motivation or not isinstance(element.motivation, str):
-            self.logger.error("Data validation failed: motivation field is empty or of incorrect type")
+            logging.error("Data validation failed: motivation field is empty or of incorrect type")
             return False
         if not isinstance(element.summary, str):
-            self.logger.error("Data validation failed: summary field has incorrect type (should be a string)")
+            logging.error("Data validation failed: summary field has incorrect type (should be a string)")
             return False
         if not isinstance(element.index, int):
-            self.logger.error("Data validation failed: index field has incorrect type")
+            logging.error("Data validation failed: index field has incorrect type")
             return False
         # Validate 'parent' field: can be None or a positive integer
         if element.parent is not None and (not isinstance(element.parent, int) or element.parent <= 0):
-            self.logger.error("Data validation failed: parent field must be None or a positive integer")
+            logging.error("Data validation failed: parent field must be None or a positive integer")
             return False
         return True
     
@@ -180,7 +180,7 @@ class MongoDatabase:
             else:
                 return 1
         except Exception as e:
-            self.logger.warning(f"Failed to get next index, using default value: {e}")
+            logging.warning(f"Failed to get next index, using default value: {e}")
             return 1
     
     async def add_element(self, time: str, name: str, result: Dict[str, Any], program: str, 
@@ -204,15 +204,15 @@ class MongoDatabase:
                 motivation_embedding = None
                 if motivation and motivation != "none":
                     try:
-                        self.logger.info(f"Starting to calculate motivation embedding, length: {len(motivation)}")
+                        logging.info(f"Starting to calculate motivation embedding, length: {len(motivation)}")
                         embedding_service = get_embedding_service()
                         motivation_embedding = embedding_service.get_single_embedding(motivation)
-                        self.logger.info(f"Successfully calculated motivation embedding, dimension: {len(motivation_embedding)}")
+                        logging.info(f"Successfully calculated motivation embedding, dimension: {len(motivation_embedding)}")
                     except Exception as e:
-                        self.logger.error(f"Failed to calculate motivation embedding: {e}", exc_info=True)
+                        logging.error(f"Failed to calculate motivation embedding: {e}", exc_info=True)
                         motivation_embedding = None
                 else:
-                    self.logger.info(f"Motivation is empty or 'none', skipping embedding calculation")
+                    logging.info(f"Motivation is empty or 'none', skipping embedding calculation")
                     if not motivation:
                         motivation = "none"
                 
@@ -220,7 +220,7 @@ class MongoDatabase:
                 if parent is not None:
                     parent_element = self.get_by_index(parent)
                     if parent_element is None:
-                        self.logger.error(f"The specified parent index={parent} does not exist")
+                        logging.error(f"The specified parent index={parent} does not exist")
                         return False
                 
                 # Create the data element
@@ -254,42 +254,42 @@ class MongoDatabase:
                 if result.inserted_id:
                     # Candidate set count management
                     candidate_manager = get_candidate_manager()
-                    self.logger.info(f"Successfully obtained candidate set manager, current count: {candidate_manager.new_data_count}")
+                    logging.info(f"Successfully obtained candidate set manager, current count: {candidate_manager.new_data_count}")
                     should_update = candidate_manager.increment_count()
-                    self.logger.info(f"Candidate set count increased to: {candidate_manager.new_data_count}, needs update: {should_update}")
+                    logging.info(f"Candidate set count increased to: {candidate_manager.new_data_count}, needs update: {should_update}")
                     
                     # If the candidate set needs to be updated, get the latest 50 data entries for batch update
                     if should_update:
-                        self.logger.info("Reached the candidate set update threshold, starting batch update")
+                        logging.info("Reached the candidate set update threshold, starting batch update")
                         # Get the 50 most recently added data for candidate set update
                         new_elements = self._get_recent_elements(50)
-                        self.logger.info(f"Retrieved {len(new_elements)} latest elements for candidate set update")
+                        logging.info(f"Retrieved {len(new_elements)} latest elements for candidate set update")
                         update_stats = await candidate_manager.update_candidates(new_elements)
-                        self.logger.info(f"Candidate set update completed: {update_stats}")
+                        logging.info(f"Candidate set update completed: {update_stats}")
                     
-                    self.logger.info(f"Successfully added element: {name}, ID: {result.inserted_id}, Index: {next_index}")
+                    logging.info(f"Successfully added element: {name}, ID: {result.inserted_id}, Index: {next_index}")
                     # If there is an embedding, add it to the FAISS index
                     if motivation_embedding is not None and len(motivation_embedding) > 0:
-                        self.logger.info(f"Preparing to add vector to FAISS, vector dimension: {len(motivation_embedding)}")
+                        logging.info(f"Preparing to add vector to FAISS, vector dimension: {len(motivation_embedding)}")
                         faiss_manager = get_faiss_manager()
                         faiss_manager.add_vector(motivation_embedding, str(result.inserted_id))
-                        self.logger.info(f"Vector successfully added to FAISS index: {result.inserted_id}")
+                        logging.info(f"Vector successfully added to FAISS index: {result.inserted_id}")
                     else:
-                        self.logger.info("No valid embedding, skipping FAISS index addition")
+                        logging.info("No valid embedding, skipping FAISS index addition")
                                         
                     return True
                 else:
-                    self.logger.error("Insertion failed, no ID returned")
+                    logging.error("Insertion failed, no ID returned")
                     return False
                     
             except DuplicateKeyError:
-                self.logger.error("Data is duplicated")
+                logging.error("Data is duplicated")
                 return False
             except PyMongoError as e:
-                self.logger.error(f"MongoDB operation failed: {e}")
+                logging.error(f"MongoDB operation failed: {e}")
                 return False
             except Exception as e:
-                self.logger.error(f"Failed to add element: {e}")
+                logging.error(f"Failed to add element: {e}")
                 return False
     
     def delete_element_by_name(self, name: str) -> bool:
@@ -299,7 +299,7 @@ class MongoDatabase:
                 # First, find the document to be deleted to get its _id
                 doc_to_delete = self.collection.find_one({"name": name})
                 if not doc_to_delete:
-                    self.logger.warning(f"Element with name={name} not found")
+                    logging.warning(f"Element with name={name} not found")
                     return False
                 
                 doc_id = str(doc_to_delete["_id"])
@@ -307,32 +307,32 @@ class MongoDatabase:
                 # Delete from MongoDB
                 result = self.collection.delete_one({"name": name})
                 if result.deleted_count > 0:
-                    self.logger.info(f"Successfully deleted element with name={name} from MongoDB")
+                    logging.info(f"Successfully deleted element with name={name} from MongoDB")
                     # If there is an embedding, delete it from FAISS
                     if doc_to_delete.get("motivation_embedding"):
                         try:
                             faiss_manager = get_faiss_manager()
                             faiss_manager.remove_vector(doc_id)
-                            self.logger.info(f"Successfully removed vector from FAISS, ID: {doc_id}")
+                            logging.info(f"Successfully removed vector from FAISS, ID: {doc_id}")
                         except Exception as e:
-                            self.logger.warning(f"Failed to remove vector from FAISS: {e}")
+                            logging.warning(f"Failed to remove vector from FAISS: {e}")
                     
                     # Delete from the candidate set
                     try:
                         candidate_manager = get_candidate_manager()
                         candidate_manager.delete_by_name(name)
                     except Exception as e:
-                        self.logger.warning(f"Failed to delete from candidate set: {e}")
+                        logging.warning(f"Failed to delete from candidate set: {e}")
                     
                     return True
                 else:
-                    self.logger.error(f"Failed to delete element with name={name} from MongoDB")
+                    logging.error(f"Failed to delete element with name={name} from MongoDB")
                     return False
             except PyMongoError as e:
-                self.logger.error(f"MongoDB error occurred while deleting element: {e}")
+                logging.error(f"MongoDB error occurred while deleting element: {e}")
                 return False
             except Exception as e:
-                self.logger.error(f"An unknown error occurred while deleting element: {e}")
+                logging.error(f"An unknown error occurred while deleting element: {e}")
                 return False
     
 
@@ -343,39 +343,39 @@ class MongoDatabase:
                 # First, find the document to be deleted to get its _id
                 doc_to_delete = self.collection.find_one({"index": index})
                 if not doc_to_delete:
-                    self.logger.warning(f"Element with index={index} not found")
+                    logging.warning(f"Element with index={index} not found")
                     return False
                 doc_id = str(doc_to_delete["_id"])
                 # Delete from MongoDB
                 result = self.collection.delete_one({"index": index})
                 if result.deleted_count > 0:
-                    self.logger.info(f"Successfully deleted element with index={index} from MongoDB")
+                    logging.info(f"Successfully deleted element with index={index} from MongoDB")
                     
                     # If there is an embedding, delete it from FAISS
                     if doc_to_delete.get("motivation_embedding"):
                         try:
                             faiss_manager = get_faiss_manager()
                             faiss_manager.remove_vector(doc_id)
-                            self.logger.info(f"Successfully removed vector from FAISS, ID: {doc_id}")
+                            logging.info(f"Successfully removed vector from FAISS, ID: {doc_id}")
                         except Exception as e:
-                            self.logger.warning(f"Failed to remove vector from FAISS: {e}")
+                            logging.warning(f"Failed to remove vector from FAISS: {e}")
                     
                     # Delete from the candidate set
                     try:
                         candidate_manager = get_candidate_manager()
                         candidate_manager.delete_by_index(index)
                     except Exception as e:
-                        self.logger.warning(f"Failed to delete from candidate set: {e}")
+                        logging.warning(f"Failed to delete from candidate set: {e}")
                     
                     return True
                 else:
-                    self.logger.error(f"Failed to delete element with index={index} from MongoDB")
+                    logging.error(f"Failed to delete element with index={index} from MongoDB")
                     return False
             except PyMongoError as e:
-                self.logger.error(f"MongoDB error occurred while deleting element: {e}")
+                logging.error(f"MongoDB error occurred while deleting element: {e}")
                 return False
             except Exception as e:
-                self.logger.error(f"An unknown error occurred while deleting element: {e}")
+                logging.error(f"An unknown error occurred while deleting element: {e}")
                 return False
     
     def delete_all_elements(self) -> bool:
@@ -390,7 +390,7 @@ class MongoDatabase:
                 
                 # Clear the MongoDB collection
                 result = self.collection.delete_many({})
-                self.logger.info(f"Successfully deleted {result.deleted_count} elements from MongoDB")
+                logging.info(f"Successfully deleted {result.deleted_count} elements from MongoDB")
                 
                 # If there is FAISS data, clear the FAISS index
                 if docs_with_embedding:
@@ -399,25 +399,25 @@ class MongoDatabase:
                         for doc in docs_with_embedding:
                             doc_id = str(doc["_id"])
                             faiss_manager.remove_vector(doc_id)
-                        self.logger.info(f"Successfully removed {len(docs_with_embedding)} vectors from FAISS")
+                        logging.info(f"Successfully removed {len(docs_with_embedding)} vectors from FAISS")
                     except Exception as e:
-                        self.logger.warning(f"Failed to clear vectors from FAISS: {e}")
+                        logging.warning(f"Failed to clear vectors from FAISS: {e}")
                 
                 # Clear the candidate set
                 try:
                     candidate_manager = get_candidate_manager()
                     candidate_manager.clear()
-                    self.logger.info("Successfully cleared candidate set")
+                    logging.info("Successfully cleared candidate set")
                 except Exception as e:
-                    self.logger.warning(f"Failed to clear candidate set: {e}")
+                    logging.warning(f"Failed to clear candidate set: {e}")
                 
                 return True
                 
             except PyMongoError as e:
-                self.logger.error(f"MongoDB error occurred while deleting all elements: {e}")
+                logging.error(f"MongoDB error occurred while deleting all elements: {e}")
                 return False
             except Exception as e:
-                self.logger.error(f"An unknown error occurred while deleting all elements: {e}")
+                logging.error(f"An unknown error occurred while deleting all elements: {e}")
                 return False
     
     def sample_element(self) -> Optional[DataElement]:
@@ -441,10 +441,10 @@ class MongoDatabase:
                 return DataElement.from_dict(doc)
                 
             except PyMongoError as e:
-                self.logger.error(f"Sampling failed: {e}")
+                logging.error(f"Sampling failed: {e}")
                 return None
             except Exception as e:
-                self.logger.error(f"Sampling failed: {e}")
+                logging.error(f"Sampling failed: {e}")
                 return None
     
     def get_by_name(self, name: str) -> List[DataElement]:
@@ -467,10 +467,10 @@ class MongoDatabase:
                 return elements
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get elements by name: {e}")
+                logging.error(f"Failed to get elements by name: {e}")
                 return []
             except Exception as e:
-                self.logger.error(f"Failed to get elements by name: {e}")
+                logging.error(f"Failed to get elements by name: {e}")
                 return []
             
     def get_by_index(self, index: int) -> DataElement:
@@ -493,10 +493,10 @@ class MongoDatabase:
                 return DataElement.from_dict(doc)
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get element by index: {e}")
+                logging.error(f"Failed to get element by index: {e}")
                 return None
             except Exception as e:
-                self.logger.error(f"Failed to get element by index: {e}")
+                logging.error(f"Failed to get element by index: {e}")
                 return None
                 
     def _evaluate_result(self, result: dict) -> float:
@@ -505,7 +505,7 @@ class MongoDatabase:
         Skips the header, calculates the mean of the first data row's values.
         """
         if not result.get('test'):
-            self.logger.warning("benchmark result is an empty string")
+            logging.warning("benchmark result is an empty string")
             return 0.0
         
         try:
@@ -527,24 +527,24 @@ class MongoDatabase:
                 try:
                     scores.append(float(value))
                 except (ValueError, TypeError):
-                    self.logger.warning(f"Cannot convert '{value}' to float, ignored when calculating the mean")
+                    logging.warning(f"Cannot convert '{value}' to float, ignored when calculating the mean")
             
             if not scores:
-                self.logger.warning(f"No valid numerical values found in the result string: '{result}'")
+                logging.warning(f"No valid numerical values found in the result string: '{result}'")
                 return 0.0
                 
             return sum(scores) / len(scores)
             
         except StopIteration:
-            self.logger.warning("CSV data incomplete, missing data row")
+            logging.warning("CSV data incomplete, missing data row")
             return 0.0
         except Exception as e:
-            self.logger.error(f"Error processing CSV data: {e}")
+            logging.error(f"Error processing CSV data: {e}")
             return 0.0
         
     def _evaluate_loss(self, result: dict) -> float:
         if not result['train']:
-            self.logger.warning("training loss result is empty string")
+            logging.warning("training loss result is empty string")
             return 0.0
         
         try:
@@ -562,20 +562,20 @@ class MongoDatabase:
             last_value = values_list[-1]  # Last step's loss
             
             if not last_value.strip():
-                self.logger.warning("last step loss value is empty")
+                logging.warning("last step loss value is empty")
                 return 0.0
                 
             try:
                 return float(last_value)
             except (ValueError, TypeError):
-                self.logger.warning(f"Failed to convert the loss value '{last_value}' of the last step to float")
+                logging.warning(f"Failed to convert the loss value '{last_value}' of the last step to float")
                 return 0.0
             
         except StopIteration:
-            self.logger.warning("CSV data incomplete, missing data row")
+            logging.warning("CSV data incomplete, missing data row")
             return 0.0
         except Exception as e:
-            self.logger.error(f"Failed to process CSV data: {e}")
+            logging.error(f"Failed to process CSV data: {e}")
             return 0.0
     
     def get_top_k_results(self, k: int = 10) -> List[DataElement]:
@@ -609,14 +609,14 @@ class MongoDatabase:
                 elements_with_scores.sort(key=lambda x: x[1], reverse=True)
                 top_k_elements = [element for element, score in elements_with_scores[:k]]
                 
-                self.logger.info(f"Successfully got top-{k} results, found {len(top_k_elements)} results")
+                logging.info(f"Successfully got top-{k} results, found {len(top_k_elements)} results")
                 return top_k_elements
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get top-k results: {e}")
+                logging.error(f"Failed to get top-k results: {e}")
                 return []
             except Exception as e:
-                self.logger.error(f"Failed to get top-k results: {e}")
+                logging.error(f"Failed to get top-k results: {e}")
                 return []
     
     def sample_from_range(self, a: int, b: int, k: int) -> List[DataElement]:
@@ -635,15 +635,15 @@ class MongoDatabase:
             try:
                 # Parameter validation
                 if a < 1 or b < 1:
-                    self.logger.error("Interval positions must start at 1")
+                    logging.error("Interval positions must start at 1")
                     return []
                 
                 if a > b:
-                    self.logger.error("Start position can't be greater than the end position")
+                    logging.error("Start position can't be greater than the end position")
                     return []
                 
                 if k < 1:
-                    self.logger.error("The number of samples must be greater than 0")
+                    logging.error("The number of samples must be greater than 0")
                     return []
                 
                 # Get all elements and sort
@@ -667,7 +667,7 @@ class MongoDatabase:
                 
                 # Check if the interval is valid
                 if a > total_count:
-                    self.logger.warning(f"Start position {a} exceeds the total number of records {total_count}")
+                    logging.warning(f"Start position {a} exceeds the total number of records {total_count}")
                     return []
                 
                 # Adjust the end position to not exceed the total number of records
@@ -679,21 +679,21 @@ class MongoDatabase:
                 
                 # If the number of elements in the interval is less than k, return all available elements
                 if range_size <= k:
-                    self.logger.info(f"There are only {range_size} elements in the interval [{a},{actual_b}], return all")
+                    logging.info(f"There are only {range_size} elements in the interval [{a},{actual_b}], return all")
                     return range_elements
                 
                 # Randomly sample k elements
                 import random
                 sampled_elements = random.sample(range_elements, k)
                 
-                self.logger.info(f"Successfully sampled {k} results in the sorted interval [{a},{actual_b}]")
+                logging.info(f"Successfully sampled {k} results in the sorted interval [{a},{actual_b}]")
                 return sampled_elements
                 
             except PyMongoError as e:
-                self.logger.error(f"Sampling from range failed: {e}")
+                logging.error(f"Sampling from range failed: {e}")
                 return []
             except Exception as e:
-                self.logger.error(f"Sampling from range failed: {e}")
+                logging.error(f"Sampling from range failed: {e}")
                 return []
     
     def get_stats(self) -> Dict[str, Any]:
@@ -723,17 +723,17 @@ class MongoDatabase:
                 }
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get statistics: {e}")
+                logging.error(f"Failed to get statistics: {e}")
                 return {}
             except Exception as e:
-                self.logger.error(f"Failed to get statistics: {e}")
+                logging.error(f"Failed to get statistics: {e}")
                 return {}
     
     def repair_database(self) -> bool:
         """Repairs the database (cleans invalid data, rebuilds indexes)"""
         with self.lock:
             try:
-                self.logger.info("Starting to repair the database...")
+                logging.info("Starting to repair the database...")
                 
                 # Find and delete invalid data
                 invalid_count = 0
@@ -757,18 +757,18 @@ class MongoDatabase:
                 # Compact the collection (requires admin permissions)
                 try:
                     self.db.command("compact", self.collection_name)
-                    self.logger.info("Database compaction completed")
+                    logging.info("Database compaction completed")
                 except Exception as e:
-                    self.logger.warning(f"Database compaction failed (may require admin permissions): {e}")
+                    logging.warning(f"Database compaction failed (may require admin permissions): {e}")
                 
-                self.logger.info(f"Database repair complete, deleted {invalid_count} invalid records")
+                logging.info(f"Database repair complete, deleted {invalid_count} invalid records")
                 return True
                 
             except PyMongoError as e:
-                self.logger.error(f"Database repair failed: {e}")
+                logging.error(f"Database repair failed: {e}")
                 return False
             except Exception as e:
-                self.logger.error(f"Database repair failed: {e}")
+                logging.error(f"Database repair failed: {e}")
                 return False
     
     def close(self):
@@ -776,9 +776,9 @@ class MongoDatabase:
         try:
             if hasattr(self, 'client'):
                 self.client.close()
-                self.logger.info("MongoDB connection closed")
+                logging.info("MongoDB connection closed")
         except Exception as e:
-            self.logger.error(f"Failed to close connection: {e}")
+            logging.error(f"Failed to close connection: {e}")
     
     def __enter__(self):
         """Context manager enter method"""
@@ -806,7 +806,7 @@ class MongoDatabase:
                 query_embedding = embedding_service.get_single_embedding(query_motivation)
                 
                 if not query_embedding:
-                    self.logger.error("Failed to calculate the embedding for the query text")
+                    logging.error("Failed to calculate the embedding for the query text")
                     return []
                 
                 # Use FAISS for fast search
@@ -814,7 +814,7 @@ class MongoDatabase:
                 faiss_results = faiss_manager.search_similar(query_embedding, k)
                 
                 if not faiss_results:
-                    self.logger.info("FAISS search found no results")
+                    logging.info("FAISS search found no results")
                     return []
                 
                 # Get the full data from MongoDB based on the FAISS results
@@ -836,17 +836,17 @@ class MongoDatabase:
                             element = DataElement.from_dict(doc)
                             results.append((element, similarity_score))
                         else:
-                            self.logger.warning(f"Document ID not found: {doc_id}")
+                            logging.warning(f"Document ID not found: {doc_id}")
                             
                     except Exception as e:
-                        self.logger.warning(f"Failed to process search result {doc_id}: {e}")
+                        logging.warning(f"Failed to process search result {doc_id}: {e}")
                         continue
                 
-                self.logger.info(f"FAISS search completed, found {len(results)} valid results")
+                logging.info(f"FAISS search completed, found {len(results)} valid results")
                 return results
                 
             except Exception as e:
-                self.logger.error(f"Searching similar motivations failed: {e}")
+                logging.error(f"Searching similar motivations failed: {e}")
                 return []
     def rebuild_faiss_index(self) -> bool:
         """
@@ -858,7 +858,7 @@ class MongoDatabase:
         """
         with self.lock:
             try:
-                self.logger.info("Starting to rebuild the FAISS index...")
+                logging.info("Starting to rebuild the FAISS index...")
                 
                 # Get all data that has an embedding
                 cursor = self.collection.find({
@@ -877,11 +877,11 @@ class MongoDatabase:
                 faiss_manager = get_faiss_manager()
                 faiss_manager.rebuild_index(vectors_data)
                 
-                self.logger.info(f"FAISS index rebuild completed, containing {len(vectors_data)} vectors")
+                logging.info(f"FAISS index rebuild completed, containing {len(vectors_data)} vectors")
                 return True
                 
             except Exception as e:
-                self.logger.error(f"Failed to rebuild FAISS index: {e}")
+                logging.error(f"Failed to rebuild FAISS index: {e}")
                 return False
     
     def get_faiss_stats(self) -> Dict[str, Any]:
@@ -890,17 +890,17 @@ class MongoDatabase:
             faiss_manager = get_faiss_manager()
             return faiss_manager.get_stats()
         except Exception as e:
-            self.logger.error(f"Failed to get FAISS statistics: {e}")
+            logging.error(f"Failed to get FAISS statistics: {e}")
             return {}
     def clean_faiss_orphans(self) -> Dict[str, Any]:
         """Cleans orphaned vectors from FAISS"""
         try:
             faiss_manager = get_faiss_manager()
             result = faiss_manager.clean_orphan_vectors()
-            self.logger.info(f"FAISS orphan vector cleanup completed: {result}")
+            logging.info(f"FAISS orphan vector cleanup completed: {result}")
             return result
         except Exception as e:
-            self.logger.error(f"Failed to clean FAISS orphan vectors: {e}")
+            logging.error(f"Failed to clean FAISS orphan vectors: {e}")
             return {"error": str(e)}
     def _get_recent_elements(self, limit: int = 50) -> List[DataElement]:
         """
@@ -929,7 +929,7 @@ class MongoDatabase:
             return elements
             
         except Exception as e:
-            self.logger.error(f"Failed to get recent data: {e}")
+            logging.error(f"Failed to get recent data: {e}")
             return []
     def get_elements_with_score(self) -> List[DataElement]:
         """
@@ -954,11 +954,11 @@ class MongoDatabase:
                     element = DataElement.from_dict(doc)
                     elements.append(element)
                 
-                self.logger.info(f"Successfully retrieved {len(elements)} scored elements")
+                logging.info(f"Successfully retrieved {len(elements)} scored elements")
                 return elements
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get scored elements: {e}")
+                logging.error(f"Failed to get scored elements: {e}")
                 return []
     async def get_or_calculate_element_score(self, index: int) -> Optional[float]:
         """
@@ -975,10 +975,10 @@ class MongoDatabase:
             return None
         
         if element.score is not None:
-            self.logger.info(f"Found cached score for element {index} in the database: {element.score}")
+            logging.info(f"Found cached score for element {index} in the database: {element.score}")
             return element.score
         
-        self.logger.info(f"No cached score found for element {index}, calculating...")
+        logging.info(f"No cached score found for element {index}, calculating...")
         candidate_manager = get_candidate_manager()
         # _evaluate_element will save the score via the callback.
         score = await candidate_manager._evaluate_element(element)
@@ -991,11 +991,11 @@ class MongoDatabase:
             Dict[str, Any]: Update result.
         """
         try:
-            self.logger.info("Starting to rebuild the candidate set from scored elements...")
+            logging.info("Starting to rebuild the candidate set from scored elements...")
             scored_elements = self.get_elements_with_score()
             
             if not scored_elements:
-                self.logger.info("No scored elements found in the database; no update performed.")
+                logging.info("No scored elements found in the database; no update performed.")
                 return {"message": "No scored elements found in DB. Candidates not updated."}
             
             top_elements = scored_elements[:50]
@@ -1003,11 +1003,11 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             result = candidate_manager.replace_candidates(top_elements)
             
-            self.logger.info("Successfully rebuilt the candidate set from scored elements.")
+            logging.info("Successfully rebuilt the candidate set from scored elements.")
             return result
             
         except Exception as e:
-            self.logger.error(f"Failed to rebuild the candidate set from scored elements: {e}")
+            logging.error(f"Failed to rebuild the candidate set from scored elements: {e}")
             return {"error": str(e)}
     # Candidate set related methods
     def get_candidate_top_k(self, k: int = 10) -> List[DataElement]:
@@ -1016,7 +1016,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_top_k(k)
         except Exception as e:
-            self.logger.error(f"Failed to get candidate top-k: {e}")
+            logging.error(f"Failed to get candidate top-k: {e}")
             return []
     def get_all_candidates_with_scores(self) -> List[DataElement]:
         """Gets all candidate set elements and their scores"""
@@ -1024,7 +1024,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_all_candidates()
         except Exception as e:
-            self.logger.error(f"Failed to get all candidates: {e}")
+            logging.error(f"Failed to get all candidates: {e}")
             return []
     def candidate_sample_from_range(self, a: int, b: int, k: int) -> List[DataElement]:
         """Samples within the candidate set in a specified range"""
@@ -1032,7 +1032,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.sample_from_range(a, b, k)
         except Exception as e:
-            self.logger.error(f"Candidate set sampling from range failed: {e}")
+            logging.error(f"Candidate set sampling from range failed: {e}")
             return []
     async def add_to_candidates(self, element: DataElement) -> bool:
         """Manually adds an element to the candidate set"""
@@ -1040,7 +1040,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return await candidate_manager.add_element(element)
         except Exception as e:
-            self.logger.error(f"Failed to add to candidate set: {e}")
+            logging.error(f"Failed to add to candidate set: {e}")
             return False
     def delete_candidate_by_index(self, index: int) -> bool:
         """Deletes a candidate by index"""
@@ -1048,7 +1048,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.delete_by_index(index)
         except Exception as e:
-            self.logger.error(f"Failed to delete from candidate set: {e}")
+            logging.error(f"Failed to delete from candidate set: {e}")
             return False
     def delete_candidate_by_name(self, name: str) -> int:
         """Deletes candidates by name"""
@@ -1056,7 +1056,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.delete_by_name(name)
         except Exception as e:
-            self.logger.error(f"Failed to delete from candidate set: {e}")
+            logging.error(f"Failed to delete from candidate set: {e}")
             return 0
     async def update_candidate(self, element: DataElement) -> bool:
         """Updates a candidate element"""
@@ -1064,7 +1064,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return await candidate_manager.update_element(element)
         except Exception as e:
-            self.logger.error(f"Failed to update candidate element: {e}")
+            logging.error(f"Failed to update candidate element: {e}")
             return False
     async def force_update_candidates(self) -> Dict[str, Any]:
         """Forces an update of the candidate set"""
@@ -1073,7 +1073,7 @@ class MongoDatabase:
             recent_elements = self._get_recent_elements(300)  # Get more data for updating
             return await candidate_manager.update_candidates(recent_elements)
         except Exception as e:
-            self.logger.error(f"Failed to force update candidate set: {e}")
+            logging.error(f"Failed to force update candidate set: {e}")
             return {"error": str(e)}
     def get_candidate_stats(self) -> Dict[str, Any]:
         """Gets candidate set statistics"""
@@ -1081,7 +1081,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_stats()
         except Exception as e:
-            self.logger.error(f"Failed to get candidate set statistics: {e}")
+            logging.error(f"Failed to get candidate set statistics: {e}")
             return {"error": str(e)}
     def get_candidate_new_data_count(self) -> int:
         """Gets the candidate set's new data count"""
@@ -1089,7 +1089,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_new_data_count()
         except Exception as e:
-            self.logger.error(f"Failed to get candidate set new data count: {e}")
+            logging.error(f"Failed to get candidate set new data count: {e}")
             return -1
     def clear_candidates(self) -> bool:
         """Clears the candidate set"""
@@ -1097,7 +1097,7 @@ class MongoDatabase:
             candidate_manager = get_candidate_manager()
             return candidate_manager.clear()
         except Exception as e:
-            self.logger.error(f"Failed to clear candidate set: {e}")
+            logging.error(f"Failed to clear candidate set: {e}")
             return False
     def uct_select_node(self, c_param: float = 1.414) -> Optional[DataElement]:
         """
@@ -1129,7 +1129,7 @@ class MongoDatabase:
                     all_elements.append(element)
                 
                 if not all_elements:
-                    self.logger.warning("No nodes found")
+                    logging.warning("No nodes found")
                     return None
                 
                 # Calculate total number of nodes
@@ -1161,7 +1161,7 @@ class MongoDatabase:
                         exploration_term = c_param * math.sqrt(math.log(total_explorations) / n_node)
                         uct_score = base_score + exploration_term
                     
-                    self.logger.debug(f"Node {element.index} ({element.name}): "
+                    logging.debug(f"Node {element.index} ({element.name}): "
                                     f"base_score={base_score:.4f}, "
                                     f"n_node={n_node}, "
                                     f"uct_score={uct_score:.4f}")
@@ -1172,15 +1172,15 @@ class MongoDatabase:
                         best_element = element
                 
                 if best_element:
-                    self.logger.info(f"UCT algorithm selected node: {best_element.name} (index: {best_element.index}), "
+                    logging.info(f"UCT algorithm selected node: {best_element.name} (index: {best_element.index}), "
                                    f"UCT score: {best_uct_score:.4f}")
                 else:
-                    self.logger.warning("UCT algorithm failed to select a node")
+                    logging.warning("UCT algorithm failed to select a node")
                 
                 return best_element
                 
             except Exception as e:
-                self.logger.error(f"UCT node selection failed: {e}")
+                logging.error(f"UCT node selection failed: {e}")
                 return None
     def get_uct_scores(self, c_param: float = 1.414) -> List[Dict[str, Any]]:
         """
@@ -1250,7 +1250,7 @@ class MongoDatabase:
                 return uct_scores
                 
             except Exception as e:
-                self.logger.error(f"Failed to get UCT scores: {e}")
+                logging.error(f"Failed to get UCT scores: {e}")
                 return []
     def get_contextual_nodes(self, parent_index: int) -> Dict[str, Any]:
         """
@@ -1272,7 +1272,7 @@ class MongoDatabase:
             # 1. Get the direct parent node
             direct_parent = self.get_by_index(parent_index)
             if not direct_parent:
-                self.logger.warning(f"Failed to get contextual nodes: parent node {parent_index} does not exist")
+                logging.warning(f"Failed to get contextual nodes: parent node {parent_index} does not exist")
                 return context
             context["direct_parent"] = direct_parent
             
@@ -1314,19 +1314,19 @@ class MongoDatabase:
                 # Validate that the child node exists
                 child_element = self.get_by_index(child_index)
                 if child_element is None:
-                    self.logger.error(f"Child node index={child_index} does not exist")
+                    logging.error(f"Child node index={child_index} does not exist")
                     return False
                 
                 # Validate that the parent node exists (if specified)
                 if parent_index is not None:
                     parent_element = self.get_by_index(parent_index)
                     if parent_element is None:
-                        self.logger.error(f"Parent node index={parent_index} does not exist")
+                        logging.error(f"Parent node index={parent_index} does not exist")
                         return False
                     
                     # Check for circular references
                     if self._would_create_cycle(child_index, parent_index):
-                        self.logger.error(f"Setting the parent node would create a circular reference: child={child_index}, parent={parent_index}")
+                        logging.error(f"Setting the parent node would create a circular reference: child={child_index}, parent={parent_index}")
                         return False
                 
                 # Update the parent field in the database
@@ -1336,17 +1336,17 @@ class MongoDatabase:
                 )
                 
                 if result.modified_count > 0:
-                    self.logger.info(f"Successfully set the parent node of element {child_index} to {parent_index}")
+                    logging.info(f"Successfully set the parent node of element {child_index} to {parent_index}")
                     return True
                 else:
-                    self.logger.error(f"Failed to set the parent node, element with index={child_index} not found")
+                    logging.error(f"Failed to set the parent node, element with index={child_index} not found")
                     return False
                     
             except PyMongoError as e:
-                self.logger.error(f"MongoDB error occurred while setting the parent node: {e}")
+                logging.error(f"MongoDB error occurred while setting the parent node: {e}")
                 return False
             except Exception as e:
-                self.logger.error(f"An unknown error occurred while setting the parent node: {e}")
+                logging.error(f"An unknown error occurred while setting the parent node: {e}")
                 return False
     def _would_create_cycle(self, child_index: int, parent_index: int) -> bool:
         """
@@ -1384,7 +1384,7 @@ class MongoDatabase:
             return False
             
         except Exception as e:
-            self.logger.warning(f"Error encountered when checking for circular references: {e}")
+            logging.warning(f"Error encountered when checking for circular references: {e}")
             return True  # Return True for safety in case of an error
     def get_children(self, parent_index: int) -> List[DataElement]:
         """
@@ -1414,10 +1414,10 @@ class MongoDatabase:
                 return children
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get children: {e}")
+                logging.error(f"Failed to get children: {e}")
                 return []
             except Exception as e:
-                self.logger.error(f"Failed to get children: {e}")
+                logging.error(f"Failed to get children: {e}")
                 return []
     def get_root_nodes(self) -> List[DataElement]:
         """
@@ -1444,10 +1444,10 @@ class MongoDatabase:
                 return roots
                 
             except PyMongoError as e:
-                self.logger.error(f"Failed to get root nodes: {e}")
+                logging.error(f"Failed to get root nodes: {e}")
                 return []
             except Exception as e:
-                self.logger.error(f"Failed to get root nodes: {e}")
+                logging.error(f"Failed to get root nodes: {e}")
                 return []
     def get_tree_path(self, index: int) -> List[DataElement]:
         """
@@ -1468,7 +1468,7 @@ class MongoDatabase:
                 # Traverse upwards to the root node
                 while current_index is not None:
                     if current_index in visited:
-                        self.logger.warning(f"Cycle detected, stopping traversal: {current_index}")
+                        logging.warning(f"Cycle detected, stopping traversal: {current_index}")
                         break
                     
                     visited.add(current_index)
@@ -1482,7 +1482,7 @@ class MongoDatabase:
                 return path
                 
             except Exception as e:
-                self.logger.error(f"Failed to get tree path: {e}")
+                logging.error(f"Failed to get tree path: {e}")
                 return []
     def get_tree_structure(self, root_index: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -1525,7 +1525,7 @@ class MongoDatabase:
                     }
                     
             except Exception as e:
-                self.logger.error(f"Failed to get tree structure: {e}")
+                logging.error(f"Failed to get tree structure: {e}")
                 return {"error": str(e)}
     def update_element_score(self, index: int, score: float) -> bool:
         """Updates the score of an element in the database."""
@@ -1536,14 +1536,14 @@ class MongoDatabase:
                     {"$set": {"score": score, "updated_at": datetime.now()}}
                 )
                 if result.modified_count > 0:
-                    self.logger.info(f"Successfully updated the score for element {index} to {score:.4f}")
+                    logging.info(f"Successfully updated the score for element {index} to {score:.4f}")
                     return True
                 elif result.matched_count == 0:
-                    self.logger.warning(f"Failed to update score: could not find element with index={index}")
+                    logging.warning(f"Failed to update score: could not find element with index={index}")
                     return False
                 return True  # score didn't change already exists
             except PyMongoError as e:
-                self.logger.error(f"Failed to update the score for element {index}: {e}")
+                logging.error(f"Failed to update the score for element {index}: {e}")
                 return False
     def clean_invalid_result_elements(self) -> Dict[str, Any]:
         """Cleans invalid elements with incomplete or only header in result field."""
@@ -1576,7 +1576,7 @@ class MongoDatabase:
                     # On other errors, assume valid to be safe
                     return True
         with self.lock:
-            self.logger.info("Starting to scan and clean invalid data (strict mode)...")
+            logging.info("Starting to scan and clean invalid data (strict mode)...")
             
             count_before = self.collection.count_documents({})
             
@@ -1587,12 +1587,12 @@ class MongoDatabase:
                 train_csv = result_field.get("train", "")
                 test_csv = result_field.get("test", "")
                 if not _is_csv_row_complete(train_csv) or not _is_csv_row_complete(test_csv):
-                    self.logger.debug(f"Marked as invalid element Index {doc['index']}: train_valid={_is_csv_row_complete(train_csv)}, test_valid={_is_csv_row_complete(test_csv)}")
+                    logging.debug(f"Marked as invalid element Index {doc['index']}: train_valid={_is_csv_row_complete(train_csv)}, test_valid={_is_csv_row_complete(test_csv)}")
                     invalid_elements_map[doc["index"]] = doc.get("parent")
             if not invalid_elements_map:
-                self.logger.info("Scan complete, no invalid elements found.")
+                logging.info("Scan complete, no invalid elements found.")
                 return {"cleaned_count": 0, "reparented_children": 0, "count_before": count_before, "count_after": count_before, "message": "No invalid elements found."}
-            self.logger.info(f"Found {len(invalid_elements_map)} invalid elements to clean.")
+            logging.info(f"Found {len(invalid_elements_map)} invalid elements to clean.")
             
             reparented_children_count = 0
             # Reparent all children nodes
@@ -1617,7 +1617,7 @@ class MongoDatabase:
             #       FAISS can be repaired by rebuilding it later.
             
             count_after = self.collection.count_documents({})
-            self.logger.info(f"Cleaning completed. Deleted {cleaned_count} invalid elements and reparented {reparented_children_count} children.")
+            logging.info(f"Cleaning completed. Deleted {cleaned_count} invalid elements and reparented {reparented_children_count} children.")
             return {
                 "count_before": count_before,
                 "cleaned_count": cleaned_count,

@@ -16,7 +16,6 @@ from database.element import DataElement
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,13 +78,13 @@ class MongoDBAPIClient:
         try:
             response = self._make_request("GET", "/health")
             if response.get("status") == "healthy":
-                logger.info("✅ API connection test successful")
+                logging.info("✅ API connection test successful")
                 return True
             else:
-                logger.warning("⚠️ API connection abnormal")
+                logging.warning("⚠️ API connection abnormal")
                 return False
         except Exception as e:
-            logger.error(f"❌ API connection failed: {e}")
+            logging.error(f"❌ API connection failed: {e}")
             raise MongoDBAPIException(f"Unable to connect to API service: {e}")
 
     def _make_request(self,
@@ -438,7 +437,7 @@ class MongoDBAPIClient:
             response = self._make_request("GET", f"/elements/context/{parent_index}")
 
             if not response.get("success"):
-                logger.warning(
+                logging.warning(
                     f"API call to get context for {parent_index} was not successful: "
                     f"{response.get('message')}"
                 )

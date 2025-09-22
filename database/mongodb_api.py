@@ -17,7 +17,6 @@ from util import DataElement
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
-logger = logging.getLogger(__name__)
 # Global database connection
 db_connection = None
 
@@ -27,7 +26,7 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management"""
     global db_connection
     # Initialization on startup
-    logger.info("MongoDB API service starting")
+    logging.info("MongoDB API service starting")
     # Create database connection
     try:
         db_connection = MongoDatabase(
@@ -35,21 +34,21 @@ async def lifespan(app: FastAPI):
             database_name="myapp",
             collection_name="data_elements"
         )
-        logger.info("Database connection created successfully")
+        logging.info("Database connection created successfully")
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        logging.error(f"Database connection failed: {e}")
         raise
 
     yield
 
     # Cleanup on shutdown
-    logger.info("Closing database connection...")
+    logging.info("Closing database connection...")
     if db_connection:
         try:
             db_connection.close()
-            logger.info("Database connection closed")
+            logging.info("Database connection closed")
         except Exception as e:
-            logger.error(f"Failed to close connection: {e}")
+            logging.error(f"Failed to close connection: {e}")
 # Create FastAPI application
 app = FastAPI(
     title="MongoDB Database API",
@@ -210,7 +209,7 @@ async def add_element(element: DataElementRequest):
             )
 
     except Exception as e:
-        logger.error(f"Failed to add element: {e}")
+        logging.error(f"Failed to add element: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to add element: {str(e)}"
@@ -244,7 +243,7 @@ async def sample_element():
             )
 
     except Exception as e:
-        logger.error(f"Failed to sample element: {e}")
+        logging.error(f"Failed to sample element: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sample element: {str(e)}"
@@ -277,7 +276,7 @@ async def get_elements_by_name(name: str):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to query by name: {e}")
+        logging.error(f"Failed to query by name: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query by name: {str(e)}"
@@ -314,7 +313,7 @@ async def get_elements_with_score_by_name(name: str):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get scored elements by name: {e}")
+        logging.error(f"Failed to get scored elements by name: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get scored elements by name: {str(e)}"
@@ -352,7 +351,7 @@ async def get_element_with_score_by_index(index: int):
         )
 
     except Exception as e:
-        logger.error(f"Failed to get scored element by index: {e}")
+        logging.error(f"Failed to get scored element by index: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get scored element by index: {str(e)}"
@@ -379,7 +378,7 @@ async def get_element_score(index: int):
             )
 
     except Exception as e:
-        logger.error(f"Failed to get element score: {e}")
+        logging.error(f"Failed to get element score: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get element score: {str(e)}"
@@ -413,7 +412,7 @@ async def get_element_by_index(index: int):
             )
 
     except Exception as e:
-        logger.error(f"Failed to query by index: {e}")
+        logging.error(f"Failed to query by index: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to query by index: {str(e)}"
@@ -436,7 +435,7 @@ async def delete_element_by_index(index: int):
             )
 
     except Exception as e:
-        logger.error(f"Failed to delete element: {e}")
+        logging.error(f"Failed to delete element: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete element: {str(e)}"
@@ -459,7 +458,7 @@ async def delete_element_by_name(name: str):
             )
 
     except Exception as e:
-        logger.error(f"Failed to delete element: {e}")
+        logging.error(f"Failed to delete element: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete element: {str(e)}"
@@ -482,7 +481,7 @@ async def delete_all_elements():
             )
 
     except Exception as e:
-        logger.error(f"Failed to delete all elements: {e}")
+        logging.error(f"Failed to delete all elements: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete all elements: {str(e)}"
@@ -506,7 +505,7 @@ async def clean_invalid_elements():
         )
 
     except Exception as e:
-        logger.error(f"Failed to clean invalid elements: {e}")
+        logging.error(f"Failed to clean invalid elements: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clean invalid elements: {str(e)}"
@@ -533,7 +532,7 @@ async def get_stats():
         )
 
     except Exception as e:
-        logger.error(f"Failed to get statistics information: {e}")
+        logging.error(f"Failed to get statistics information: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get statistics information: {str(e)}"
@@ -559,7 +558,7 @@ async def repair_database():
             )
 
     except Exception as e:
-        logger.error(f"Database repair failed: {e}")
+        logging.error(f"Database repair failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database repair failed: {str(e)}"
@@ -604,7 +603,7 @@ async def get_top_k_results(k: int):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get top-k results: {e}")
+        logging.error(f"Failed to get top-k results: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get top-k results: {str(e)}"
@@ -662,7 +661,7 @@ async def sample_from_range(a: int, b: int, k: int):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to sample from range: {e}")
+        logging.error(f"Failed to sample from range: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sample from range: {str(e)}"
@@ -711,7 +710,7 @@ async def search_similar_motivations(
         return response
 
     except Exception as e:
-        logger.error(f"Similarity search failed: {e}")
+        logging.error(f"Similarity search failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Similarity search failed: {str(e)}"
@@ -738,7 +737,7 @@ async def rebuild_faiss_index():
             )
 
     except Exception as e:
-        logger.error(f"Failed to rebuild FAISS index: {e}")
+        logging.error(f"Failed to rebuild FAISS index: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rebuild FAISS index: {str(e)}"
@@ -758,7 +757,7 @@ async def get_faiss_stats():
         }
 
     except Exception as e:
-        logger.error(f"Failed to get FAISS statistics: {e}")
+        logging.error(f"Failed to get FAISS statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get FAISS statistics: {str(e)}"
@@ -785,7 +784,7 @@ async def clean_faiss_orphans():
         )
 
     except Exception as e:
-        logger.error(f"Failed to clean FAISS orphan vectors: {e}")
+        logging.error(f"Failed to clean FAISS orphan vectors: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clean FAISS orphan vectors: {str(e)}"
@@ -805,7 +804,7 @@ async def get_candidate_stats():
         }
 
     except Exception as e:
-        logger.error(f"Failed to get candidate set statistics: {e}")
+        logging.error(f"Failed to get candidate set statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get candidate set statistics: {str(e)}"
@@ -832,7 +831,7 @@ async def get_candidate_new_data_count():
             )
 
     except Exception as e:
-        logger.error(f"Failed to get new data count: {e}")
+        logging.error(f"Failed to get new data count: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get new data count: {str(e)}"
@@ -877,7 +876,7 @@ async def get_candidate_top_k(k: int):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get candidate top-k: {e}")
+        logging.error(f"Failed to get candidate top-k: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get candidate top-k: {str(e)}"
@@ -911,7 +910,7 @@ async def get_all_candidates_with_scores():
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get all candidates: {e}")
+        logging.error(f"Failed to get all candidates: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get all candidates: {str(e)}"
@@ -970,7 +969,7 @@ async def candidate_sample_from_range(a: int, b: int, k: int):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to sample from candidate set range: {e}")
+        logging.error(f"Failed to sample from candidate set range: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sample from candidate set range: {str(e)}"
@@ -1007,7 +1006,7 @@ async def add_to_candidates(index: int):
             )
 
     except Exception as e:
-        logger.error(f"Failed to add to candidate set: {e}")
+        logging.error(f"Failed to add to candidate set: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to add to candidate set: {str(e)}"
@@ -1033,7 +1032,7 @@ async def delete_candidate_by_index(index: int):
             )
 
     except Exception as e:
-        logger.error(f"Failed to delete element from candidate set: {e}")
+        logging.error(f"Failed to delete element from candidate set: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete element from candidate set: {str(e)}"
@@ -1052,7 +1051,7 @@ async def delete_candidate_by_name(name: str):
         )
 
     except Exception as e:
-        logger.error(f"Failed to delete element from candidate set: {e}")
+        logging.error(f"Failed to delete element from candidate set: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete element from candidate set: {str(e)}"
@@ -1089,7 +1088,7 @@ async def update_candidate(index: int):
             )
 
     except Exception as e:
-        logger.error(f"Failed to update candidate set element: {e}")
+        logging.error(f"Failed to update candidate set element: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update candidate set element: {str(e)}"
@@ -1116,7 +1115,7 @@ async def force_update_candidates():
         )
 
     except Exception as e:
-        logger.error(f"Failed to force update candidate set: {e}")
+        logging.error(f"Failed to force update candidate set: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to force update candidate set: {str(e)}"
@@ -1143,7 +1142,7 @@ async def rebuild_candidates_from_scored():
         )
 
     except Exception as e:
-        logger.error(f"Failed to rebuild candidate set: {e}")
+        logging.error(f"Failed to rebuild candidate set: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rebuild candidate set: {str(e)}"
@@ -1169,7 +1168,7 @@ async def clear_candidates():
             )
 
     except Exception as e:
-        logger.error(f"Failed to clear candidate set: {e}")
+        logging.error(f"Failed to clear candidate set: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clear candidate set: {str(e)}"
@@ -1205,7 +1204,7 @@ async def set_parent(
             )
 
     except Exception as e:
-        logger.error(f"Failed to set parent node: {e}")
+        logging.error(f"Failed to set parent node: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to set parent node: {str(e)}"
@@ -1238,7 +1237,7 @@ async def get_children(parent_index: int):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get child nodes: {e}")
+        logging.error(f"Failed to get child nodes: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get child nodes: {str(e)}"
@@ -1271,7 +1270,7 @@ async def get_root_nodes():
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get root nodes: {e}")
+        logging.error(f"Failed to get root nodes: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get root nodes: {str(e)}"
@@ -1304,7 +1303,7 @@ async def get_tree_path(index: int):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get tree path: {e}")
+        logging.error(f"Failed to get tree path: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get tree path: {str(e)}"
@@ -1324,7 +1323,7 @@ async def get_tree_structure(root_index: Optional[int] = None):
         }
 
     except Exception as e:
-        logger.error(f"Failed to get tree structure: {e}")
+        logging.error(f"Failed to get tree structure: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get tree structure: {str(e)}"
@@ -1379,7 +1378,7 @@ async def get_contextual_nodes(parent_index: int):
         # Re-raise known HTTP exceptions
         raise e
     except Exception as e:
-        logger.error(f"Failed to get contextual nodes: {e}")
+        logging.error(f"Failed to get contextual nodes: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get contextual nodes: {str(e)}"
@@ -1439,7 +1438,7 @@ async def uct_select_node(c_param: float = 1.414):
             )
 
     except Exception as e:
-        logger.error(f"UCT node selection failed: {e}")
+        logging.error(f"UCT node selection failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"UCT node selection failed: {str(e)}"
@@ -1479,7 +1478,7 @@ async def get_uct_scores(c_param: float = 1.414):
         return response
 
     except Exception as e:
-        logger.error(f"Failed to get UCT scores: {e}")
+        logging.error(f"Failed to get UCT scores: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get UCT scores: {str(e)}"
