@@ -110,7 +110,7 @@ class CandidateManager:
             client = AsyncAzureOpenAI()
 
             set_default_openai_client(client)
-            set_default_openai_api("chat_completions") 
+            set_default_openai_api("chat_completions")
             set_tracing_disabled(True)
 
             input_text = model_judger_input(element)
@@ -335,7 +335,7 @@ class CandidateManager:
                 # Evaluate and add new data
                 new_evaluated = 0
                 for element in filtered_elements:
-                    await self._evaluate_element(element) # Score will be saved in element.score
+                    await self._evaluate_element(element)  # Score will be saved in element.score
                     all_elements.append(element)
                     new_evaluated += 1
 
@@ -574,7 +574,7 @@ class CandidateManager:
                 # Find and update matching candidate
                 for i, old_element in enumerate(self.candidates):
                     if old_element.index == element.index:
-                        await self._evaluate_element(element) # Will update element.score
+                        await self._evaluate_element(element)  # Will update element.score
                         self.candidates[i] = element
 
                         # Re-sort

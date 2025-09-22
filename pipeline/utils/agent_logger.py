@@ -415,8 +415,8 @@ class AgentLogger:
                         "_type": "Object",
                         "_class": type(data).__name__,
                         "_module": getattr(type(data), '__module__', 'unknown'),
-                        "data": {k: self._serialize_data(v, max_depth, current_depth + 1) 
-                               for k, v in data.__dict__.items() if not k.startswith('_')}
+                        "data": {k: self._serialize_data(v, max_depth, current_depth + 1)
+                                 for k, v in data.__dict__.items() if not k.startswith('_')}
                     }
                 except Exception:
                     pass

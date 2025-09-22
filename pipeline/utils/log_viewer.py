@@ -116,14 +116,14 @@ class LogViewer:
 
             # Input information
             start_log = detail.get('start_log', {})
-            print(f"\n--- Input ---")
+            print("\n--- Input ---")
             input_data = start_log.get('input')
             if input_data:
                 print(json.dumps(input_data, ensure_ascii=False, indent=2)[:1000] + "..." if len(str(input_data)) > 1000 else json.dumps(input_data, ensure_ascii=False, indent=2))
 
             # Output information
             end_log = detail.get('end_log', {})
-            print(f"\n--- Output ---")
+            print("\n--- Output ---")
             if end_log.get('status') == 'completed':
                 output_data = end_log.get('output')
                 if output_data:
@@ -182,7 +182,6 @@ class LogViewer:
                             continue
 
                 # Format display
-                pipeline_name = start_info.get('pipeline_name', '') if start_info else ''
                 start_time = start_info.get('timestamp', 'N/A') if start_info else 'N/A'
                 status = end_info.get('status', 'running') if end_info else 'running'
                 summary = end_info.get('summary', '') if end_info else ''

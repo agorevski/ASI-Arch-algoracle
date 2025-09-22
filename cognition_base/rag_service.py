@@ -217,7 +217,7 @@ class OpenSearchRAGService:
                         "method": {
                             "name": "hnsw",
                             "space_type": "cosinesimil",
-                            "engine": "nmslib", # Use the nmslib engine
+                            "engine": "nmslib",  # Use the nmslib engine
                             "parameters": {
                                 "ef_construction": 128,
                                 "m": 24

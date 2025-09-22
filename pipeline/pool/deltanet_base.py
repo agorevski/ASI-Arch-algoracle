@@ -6,7 +6,6 @@ Based on the DeltaNet paper: https://arxiv.org/abs/2406.06484
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import Optional
 
 

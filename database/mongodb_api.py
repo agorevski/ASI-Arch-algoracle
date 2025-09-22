@@ -215,6 +215,7 @@ async def add_element(element: DataElementRequest):
             detail=f"Failed to add element: {str(e)}"
         )
 
+
 @app.get("/elements/sample", response_model=DataElementResponse)
 async def sample_element():
     """Randomly sample a data element"""
@@ -1037,6 +1038,8 @@ async def delete_candidate_by_index(index: int):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete element from candidate set: {str(e)}"
         )
+
+
 @app.delete("/candidates/by-name/{name}", response_model=ApiResponse)
 async def delete_candidate_by_name(name: str):
     """Delete elements from the candidate set by name"""

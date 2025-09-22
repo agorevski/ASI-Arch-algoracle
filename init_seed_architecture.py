@@ -23,26 +23,28 @@ SEED_TRAIN_RESULT = """step,loss
 SEED_TEST_RESULT = """model,arc_easy,arc_challenge,hellaswag,mmlu,truthfulqa,winogrande,gsm8k
 DeltaNet-Base,0.6234,0.4156,0.5789,0.4523,0.3891,0.6012,0.2345"""
 
+
 def read_source_file():
     """Read the DeltaNet source code"""
     source_path = Path("pipeline/pool/deltanet_base.py")
     if not source_path.exists():
         raise FileNotFoundError(f"Source file not found: {source_path}")
-    
+
     with open(source_path, 'r', encoding='utf-8') as f:
         return f.read()
+
 
 def create_seed_element():
     """Create the seed data element"""
     current_time = datetime.now().isoformat()
-    
+
     program = read_source_file()
-    
+
     result = {
         "train": SEED_TRAIN_RESULT,
         "test": SEED_TEST_RESULT
     }
-    
+
     analysis = """Initial Analysis of DeltaNet Architecture:
 
 Architecture Overview:
@@ -77,10 +79,10 @@ This baseline provides a solid foundation for evolutionary improvements in linea
 
 The DeltaNet architecture builds upon several key innovations in linear attention:
 
-1. **Linear Attention Mechanisms**: Unlike quadratic attention in standard transformers, 
+1. **Linear Attention Mechanisms**: Unlike quadratic attention in standard transformers,
    linear attention achieves O(n) complexity by avoiding explicit computation of attention matrices.
 
-2. **Delta Rule**: Inspired by Hebbian learning, the delta rule updates associative memory 
+2. **Delta Rule**: Inspired by Hebbian learning, the delta rule updates associative memory
    states incrementally, allowing for efficient sequential processing.
 
 3. **Forgetting Mechanism**: The beta parameter enables selective forgetting of past information,
@@ -106,7 +108,7 @@ This foundation enables systematic exploration of linear attention variants."""
   - Learning rate: 5e-4
   - Warmup steps: 100
   - Max steps: 500
-  
+
 [2024-01-13 22:12:15] Step 0: Loss = 4.234
 [2024-01-13 22:14:32] Step 100: Loss = 3.891 (Warmup complete)
 [2024-01-13 22:16:45] Step 200: Loss = 3.456
@@ -135,7 +137,7 @@ The delta rule, inspired by Hebbian learning from neuroscience, provides a princ
 Scientific Impact:
 This architecture serves as a testbed for understanding the trade-offs between computational efficiency and model expressiveness in sequence modeling. It provides a foundation for systematic exploration of:
 - Alternative update rules for linear attention
-- Different forgetting mechanisms and schedules  
+- Different forgetting mechanisms and schedules
 - Hybrid architectures combining linear and quadratic attention
 - Scaling laws for linear attention models
 
@@ -169,50 +171,52 @@ async def add_seed_to_database():
 
         if response.status_code == 200:
             result = response.json()
-            print(f"✅ Seed element added successfully!")
+            print("✅ Seed element added successfully!")
             print(f"   Element ID: {result.get('message', 'Added')}")
             return True
         else:
             print(f"❌ Failed to add seed element: {response.status_code}")
             print(f"   Response: {response.text}")
             return False
-            
+
     except requests.exceptions.RequestException as e:
         print(f"❌ Error connecting to database API: {e}")
         return False
 
+
 def update_candidate_storage():
     """Update the candidate storage JSON file"""
-    
+
     candidate_file = Path("database/candidate_storage.json")
-    
+
     try:
         # Read current candidate storage
         with open(candidate_file, 'r') as f:
             storage = json.load(f)
-        
+
         # Update with seed information
         storage["candidates"] = [1]  # Index 1 will be the seed element
         storage["new_data_count"] = 1
         storage["last_updated"] = datetime.now().isoformat()
-        
+
         # Write back
         with open(candidate_file, 'w') as f:
             json.dump(storage, f, indent=2)
-        
+
         print("✅ Updated candidate_storage.json")
         return True
-        
+
     except Exception as e:
         print(f"❌ Failed to update candidate storage: {e}")
         return False
 
+
 async def main():
     """Main initialization function"""
-    
+
     print("🚀 Initializing ASI-Arch with seed DeltaNet architecture")
     print("=" * 60)
-    
+
     # Check if database API is running
     try:
         response = requests.get("http://localhost:8001/stats", timeout=5)
@@ -226,35 +230,35 @@ async def main():
         print("❌ Database API not accessible. Please start the database service first.")
         print("   Run: cd database && ./start_api.sh")
         return False
-    
+
     # Add seed element to database
     success = await add_seed_to_database()
     if not success:
         return False
-    
+
     # Update candidate storage
     success = update_candidate_storage()
     if not success:
         return False
-    
+
     # Verify the addition
     try:
         response = requests.get("http://localhost:8001/stats", timeout=5)
         if response.status_code == 200:
             stats = response.json()
             print(f"📊 Updated Database: {stats['total_records']} records")
-        
+
         response = requests.get("http://localhost:8001/candidates/all", timeout=5)
         if response.status_code == 200:
             candidates = response.json()
             print(f"🎯 Candidate Pool: {len(candidates)} candidates")
     except:
         pass
-    
+
     print("=" * 60)
     print("✅ ASI-Arch initialization complete!")
     print("   You can now run experiments with: cd pipeline && python pipeline.py")
-    
+
     return True
 
 if __name__ == "__main__":

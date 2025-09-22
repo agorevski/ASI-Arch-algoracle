@@ -27,7 +27,7 @@ def init_rag_service():
     try:
         logger.info("Initializing RAG service...")
         rag_service = OpenSearchRAGService()
-        
+
         # Load and index data
         documents = rag_service.load_cognition_data()
         if documents:
@@ -41,7 +41,7 @@ def init_rag_service():
         else:
             logger.error("No documents loaded")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error initializing RAG service: {e}")
         logger.error(traceback.format_exc())
@@ -49,6 +49,7 @@ def init_rag_service():
 
 # Note: The before_first_request decorator has been removed in Flask 2.2+
 # The service is now initialized manually in the main function
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -60,6 +61,7 @@ def handle_exception(e):
         "message": str(e)
     }), 500
 
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -68,7 +70,7 @@ def health_check():
             "status": "error",
             "message": "RAG service not initialized"
         }), 503
-    
+
     try:
         stats = rag_service.get_stats()
         return jsonify({
@@ -82,6 +84,7 @@ def health_check():
             "message": str(e)
         }), 503
 
+
 @app.route('/search', methods=['POST'])
 def search_patterns():
     """Search for similar experiment trigger patterns"""
@@ -89,48 +92,48 @@ def search_patterns():
         return jsonify({
             "error": "RAG service not initialized"
         }), 503
-    
+
     try:
         data = request.get_json()
-        
+
         if not data:
             return jsonify({
                 "error": "Request body cannot be empty"
             }), 400
-        
+
         query = data.get('query', '').strip()
         if not query:
             return jsonify({
                 "error": "Query parameter cannot be empty"
             }), 400
-        
+
         k = data.get('k', 5)
         similarity_threshold = data.get('similarity_threshold', 0.6)
-        
+
         # Validate parameters
         if not isinstance(k, int) or k <= 0 or k > 50:
             return jsonify({
                 "error": "Parameter k must be an integer between 1 and 50"
             }), 400
-        
+
         if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0 or similarity_threshold > 1:
             return jsonify({
                 "error": "Similarity threshold must be a value between 0 and 1"
             }), 400
-        
+
         # Perform the search
         results = rag_service.search_similar_patterns(
             query=query,
             k=k,
             similarity_threshold=similarity_threshold
         )
-        
+
         return jsonify({
             "query": query,
             "total_results": len(results),
             "results": results
         })
-        
+
     except Exception as e:
         logger.error(f"Error during search: {e}")
         logger.error(traceback.format_exc())
@@ -139,6 +142,7 @@ def search_patterns():
             "message": str(e)
         }), 500
 
+
 @app.route('/paper/<paper_key>', methods=['GET'])
 def get_paper_documents(paper_key):
     """Get all related documents based on the paper key"""
@@ -146,21 +150,21 @@ def get_paper_documents(paper_key):
         return jsonify({
             "error": "RAG service not initialized"
         }), 503
-    
+
     try:
         if not paper_key.strip():
             return jsonify({
                 "error": "Paper key cannot be empty"
             }), 400
-        
+
         results = rag_service.get_document_by_paper(paper_key)
-        
+
         return jsonify({
             "paper_key": paper_key,
             "total_documents": len(results),
             "documents": results
         })
-        
+
     except Exception as e:
         logger.error(f"Error during paper key search: {e}")
         logger.error(traceback.format_exc())
@@ -169,6 +173,7 @@ def get_paper_documents(paper_key):
             "message": str(e)
         }), 500
 
+
 @app.route('/stats', methods=['GET'])
 def get_statistics():
     """Get index statistics"""
@@ -176,11 +181,11 @@ def get_statistics():
         return jsonify({
             "error": "RAG service not initialized"
         }), 503
-    
+
     try:
         stats = rag_service.get_stats()
         return jsonify(stats)
-        
+
     except Exception as e:
         logger.error(f"Error getting statistics: {e}")
         logger.error(traceback.format_exc())
@@ -188,6 +193,7 @@ def get_statistics():
             "error": "Failed to get statistics",
             "message": str(e)
         }), 500
+
 
 @app.route('/reinit', methods=['POST'])
 def reinitialize_service():
@@ -204,7 +210,7 @@ def reinitialize_service():
                 "status": "error",
                 "message": "RAG service re-initialization failed"
             }), 500
-            
+
     except Exception as e:
         logger.error(f"Error during re-initialization: {e}")
         logger.error(traceback.format_exc())
@@ -212,6 +218,7 @@ def reinitialize_service():
             "status": "error",
             "message": str(e)
         }), 500
+
 
 @app.route('/', methods=['GET'])
 def api_info():

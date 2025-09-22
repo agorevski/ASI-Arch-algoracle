@@ -17,14 +17,14 @@ delta_net,0.168,0.324,0.364,0.000,0.296,0.002,0.136,0.526,0.354,0.002,0.008,0.50
 ### 2. Gated Delta Net (Score: 10/10)
 - main insight method is the Gated Delta Rule, which cleverly combines two complementary memory management mechanisms. Here's a summary of the core insights:
 Core Insight
-The key insight of the paper is that gating enables rapid memory erasure while the delta rule facilitates targeted updates . 
+The key insight of the paper is that gating enables rapid memory erasure while the delta rule facilitates targeted updates .
 Specifically:
 Gating mechanism advantage: Enables rapid clearing of outdated or irrelevant information by setting αt → 0
 Delta rule advantage: Facilitates selective updates of specific content without affecting other information by setting αt → 1
 
 Method Design
 Based on this insight, the paper proposes the Gated Delta Rule:
-St = St−1 (αt(I − βtktk⊺t)) + βtvtk⊺t 
+St = St−1 (αt(I − βtktk⊺t)) + βtvtk⊺t
 Where:
 αt ∈ (0,1) is a data-dependent gating term that controls state decay
 βt ∈ (0,1) is the writing strength that controls new information writing
@@ -66,7 +66,7 @@ Compare against Delta Net baseline (final loss 4.5787, avg score 0.224):
 
 Performance Score Guidelines:
 - **1-2**: Significantly worse performance than Delta Net (>5% degradation)
-- **3-4**: Slightly worse performance than Delta Net (1-5% degradation)  
+- **3-4**: Slightly worse performance than Delta Net (1-5% degradation)
 - **5**: Similar performance to Delta Net (±1%)
 - **6**: Minor improvement over Delta Net (1-3% improvement)
 - **7**: Moderate improvement over Delta Net (3-7% improvement)
@@ -106,14 +106,14 @@ Calculate weighted score: (Performance × 0.3) + (Innovation × 0.25) + (Complex
 
 **Be strict and discriminating in your evaluation.** Most Delta Net variants should score in the 4-7 range unless they show clear, measurable improvements. Reserve scores 8+ for genuinely superior architectures.
 
-**Quantitative Analysis Required**: 
+**Quantitative Analysis Required**:
 - Calculate exact percentage improvements/degradations in training loss and evaluation metrics
 - Compare final training loss and convergence patterns
 - Analyze each benchmark score individually
 
 **Expected Score Distribution for Delta Net Variants**:
 - 60% of models: 4-6 (minor variations with limited impact)
-- 30% of models: 7-8 (meaningful improvements)  
+- 30% of models: 7-8 (meaningful improvements)
 - 10% of models: 9-10 (exceptional innovations approaching Gated Delta Net)
 
 Provide detailed quantitative reasoning for your score, including specific numerical comparisons."""

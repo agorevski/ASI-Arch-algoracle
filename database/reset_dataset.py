@@ -2,19 +2,21 @@ import requests
 from datetime import datetime
 # API Configuration
 API_BASE_URL = "http://localhost:8001"
+
+
 def add_element_via_api(element_data):
     """Adds a data element via the API"""
     url = f"{API_BASE_URL}/elements"
     headers = {"Content-Type": "application/json"}
-    
+
     try:
         response = requests.post(url, headers=headers, json=element_data)
         response.raise_for_status()  # Raises an exception for bad status codes
-        
+
         result = response.json()
         print(f"✅ Successfully added: {result}")
         return True
-        
+
     except requests.exceptions.RequestException as e:
         print(f"❌ Failed to add: {e}")
         if hasattr(e, 'response') and e.response is not None:
@@ -24,6 +26,8 @@ def add_element_via_api(element_data):
             except:
                 print(f"Response content: {e.response.text}")
         return False
+
+
 # Prepare the data
 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 # Complete raw data (including column names for logging)
@@ -51,7 +55,7 @@ def softmax(x):
 def delta_rule_chunkwise(q, k, v, beta, chunk_size=32):
     b, h, l, d_k = q.shape
     d_v = v.shape[-1]
-    
+
     # Calculate padding
     pad_len = (chunk_size - l % chunk_size) % chunk_size
     if pad_len > 0:
@@ -60,14 +64,14 @@ def delta_rule_chunkwise(q, k, v, beta, chunk_size=32):
         k = F.pad(k, (0, 0, 0, pad_len))
         v = F.pad(v, (0, 0, 0, pad_len))
         beta = F.pad(beta, (0, pad_len))
-    
+
     padded_len = l + pad_len
     # q = q * (d_k ** -0.5)
     q = l2norm(q)
     k = l2norm(k)
     v = v * beta[..., None]
     k_beta = k * beta[..., None]
-    
+
     # compute (I - tri(diag(beta) KK^T))^{-1}
     mask = torch.triu(torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=q.device), diagonal=0)
     q, k, v, k_beta = map(lambda x: rearrange(x, 'b h (n c) d -> b h n c d', c=chunk_size), [q, k, v, k_beta])
@@ -252,13 +256,13 @@ class DeltaNet(nn.Module):
             beta = torch.ones_like(q[..., 0])
         if self.allow_neg_eigval:
             beta = beta * 2.
-        
+
         recurrent_state = last_state['recurrent_state'] if last_state is not None else None
         q = rearrange(q, 'b l h d -> b h l d')
         k = rearrange(k, 'b l h d -> b h l d')
         v = rearrange(v, 'b l h d -> b h l d')
         beta = rearrange(beta, 'b l h -> b h l')
-            
+
         o, recurrent_state = delta_rule_chunkwise(
             q=q,
             k=k,
@@ -332,7 +336,7 @@ element_data = {
     "motivation": motivation
 }
 # Add the data
-print(f"🗑️ Deleting all existing data...")
+print("🗑️ Deleting all existing data...")
 delete_url = f"{API_BASE_URL}/elements/all"
 try:
     delete_response = requests.delete(delete_url)
@@ -352,7 +356,7 @@ print(f"Target API: {API_BASE_URL}")
 success = add_element_via_api(element_data)
 if success:
     print("\n🎉 Data addition complete!")
-    
+
     # Verify that the data was added successfully
     print("\nVerifying data...")
     try:

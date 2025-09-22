@@ -37,15 +37,7 @@ class SimpleTextDataset(Dataset):
 
 
 class DefaultTrainingPipeline(TrainingPipeline):
-    """
-    Default implementation of the training pipeline.
-
-    This implementation provides the same functionality as the original train.py
-    but structured using the base class interface.
-    """
-
     def load_model(self) -> nn.Module:
-        """Load model from Python file"""
         model_file = self.config.model_file
         if not os.path.exists(model_file):
             raise FileNotFoundError(f"Model file not found: {model_file}")
@@ -65,15 +57,13 @@ class DefaultTrainingPipeline(TrainingPipeline):
         return model
 
     def create_dataset(self) -> Dataset:
-        """Create simple text dataset for training"""
         return SimpleTextDataset(
             vocab_size=self.config.vocab_size,
             seq_len=self.config.seq_len,
             size=self.config.dataset_size
         )
-        
+
     def train_model(self, model: nn.Module, train_loader: DataLoader) -> List[Tuple[int, float]]:
-        """Train the model and return loss history"""
         model = model.to(self.device)
         model.train()
 
