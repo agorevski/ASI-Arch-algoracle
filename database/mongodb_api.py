@@ -1446,6 +1446,8 @@ async def uct_select_node(c_param: float = 1.414):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"UCT node selection failed: {str(e)}"
         )
+
+
 @app.get("/elements/uct-scores", response_model=List[UCTScoreResponse])
 async def get_uct_scores(c_param: float = 1.414):
     """Get UCT score details for all nodes"""

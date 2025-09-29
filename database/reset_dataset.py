@@ -23,7 +23,7 @@ def add_element_via_api(element_data):
             try:
                 error_detail = e.response.json()
                 print(f"Error details: {error_detail}")
-            except:
+            except Exception:
                 print(f"Response content: {e.response.text}")
         return False
 
@@ -348,7 +348,7 @@ except requests.exceptions.RequestException as e:
         try:
             error_detail = e.response.json()
             print(f"Error details: {error_detail}")
-        except:
+        except Exception:
             print(f"Response content: {e.response.text}")
 print("Starting to add DeltaNet experiment data...")
 print(f"Time: {current_time}")
@@ -382,7 +382,7 @@ if success:
             try:
                 error_detail = e.response.json()
                 print(f"Error details: {error_detail}")
-            except:
+            except Exception:
                 print(f"Response content: {e.response.text}")
 else:
     print("\n❌ Data addition failed! Please check if the API service is running correctly")

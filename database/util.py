@@ -1,10 +1,11 @@
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, List, Optional
 
+import logging
 import json
+from agents import Runner
 from datetime import datetime
 from pathlib import Path
-from agents import Runner
 import csv
 import io
 
@@ -708,8 +709,7 @@ class DataElement:
             score=data.get('score', None)
         )
 
-import logging
-from typing import Dict, Any
+
 logger = logging.getLogger(__name__)
 
 

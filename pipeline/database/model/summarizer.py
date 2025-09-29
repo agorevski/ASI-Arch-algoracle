@@ -76,7 +76,7 @@ Your experience summary should provide:
 ## Key Success Metrics:
 Your experience synthesis should enable the Planner to:
 - Understand exactly what architectural elements are limiting performance
-- Identify specific research insights that could address these limitations 
+- Identify specific research insights that could address these limitations
 - Make informed decisions about which features to preserve, modify, or remove
 - Design targeted improvements with clear theoretical justification
 - Avoid repeating unsuccessful approaches from previous iterations""",

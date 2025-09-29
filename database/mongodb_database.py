@@ -667,7 +667,7 @@ class MongoDatabase:
                 actual_b = min(b, total_count)
 
                 # Extract elements within the interval (convert to 0-based index)
-                range_elements = [element for element, score in elements_with_scores[a-1:actual_b]]
+                range_elements = [element for element, score in elements_with_scores[a - 1:actual_b]]
                 range_size = len(range_elements)
 
                 # If the number of elements in the interval is less than k, return all available elements
