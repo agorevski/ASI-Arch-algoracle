@@ -246,7 +246,7 @@ class OpenSearchRAGService:
         """Extract file name (without extension) from file path"""
         return Path(filepath).stem
 
-    def load_cognition_data(self, data_dir: str = "cognition") -> List[RAGDocument]:
+    def load_cognition_data(self, data_dir: str) -> List[RAGDocument]:
         """
         Loads all JSON files in the cognition data directory
 

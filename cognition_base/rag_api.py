@@ -9,6 +9,7 @@ from flask_cors import CORS
 import logging
 import traceback
 from rag_service import OpenSearchRAGService
+import argparse
 
 
 # Configure logging
@@ -21,7 +22,7 @@ CORS(app)  # Enable Cross-Origin Resource Sharing (CORS)
 rag_service = None
 
 
-def init_rag_service():
+def init_rag_service(data_dir: str):
     """Initialize the RAG service"""
     global rag_service
     try:
@@ -29,7 +30,7 @@ def init_rag_service():
         rag_service = OpenSearchRAGService()
 
         # Load and index data
-        documents = rag_service.load_cognition_data()
+        documents = rag_service.load_cognition_data(data_dir=data_dir)
         if documents:
             success = rag_service.index_documents(documents)
             if success:
@@ -246,12 +247,20 @@ def api_info():
     })
 
 
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='RAG API Service')
+    parser.add_argument('--data_dir', type=str, default='cognition/linear_attention', help='Path to the RAG service folder to load data from')
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
     print("Starting RAG API service...")
     print("Initializing RAG Service...")
 
+    args = parse_arguments()
     # Initialize the RAG service before starting the Flask application
-    success = init_rag_service()
+    success = init_rag_service(data_dir=args.data_dir)
     if not success:
         print("❌ RAG service initialization failed, please check the logs")
         exit(1)

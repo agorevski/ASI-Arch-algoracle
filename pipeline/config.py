@@ -40,6 +40,7 @@ class Config:
     AZURE_DEPLOYMENT_MODEL_DEBUGGER: str = "gpt-5"
     AZURE_DEPLOYMENT_MODEL_TRAINER: str = "gpt-5"
     AZURE_DEPLOYMENT_MODEL_MOTIVATION_CHECKER: str = "gpt-5"
+    AZURE_DEPLOYMENT_RAG_GENERATION: str = "gpt-5"
     API_VERSION: str = "2025-01-01-preview"
     API_KEY: str = "your_key"
 
