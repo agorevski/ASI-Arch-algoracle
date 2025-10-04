@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Tuple
 
@@ -5,6 +6,9 @@ from config import Config
 from utils.verbose_logger import verbose_log_agent_run, log_training_progress, log_file_operation, log_error_context
 from .model import debugger, trainer
 from .prompts import Debugger_input
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
 
 
 async def evaluation(name: str, motivation: str) -> bool:
@@ -20,7 +24,7 @@ async def evaluation(name: str, motivation: str) -> bool:
     """
     success, error_msg = await run_training(name, motivation)
     if not success:
-        print(f"Training failed: {error_msg}")
+        logging.error(f"Training failed: {error_msg}")
         return False
     save(name)
     return True
@@ -56,7 +60,7 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
 
                 changes_made = debug_result.final_output.changes_made
                 log_training_progress("Debug Complete", f"Changes made: {changes_made}")
-                print(f"Debug changes for {name}: {changes_made}")
+                logging.info(f"Debug changes for {name}: {changes_made}")
 
             log_training_progress("Training Execution", f"Running python: {Config.TRAINING_SCRIPT}")
             train_result = await verbose_log_agent_run(
@@ -69,7 +73,7 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
 
             if train_result.final_output.success:
                 log_training_progress("Training Success", f"Experiment {name} completed successfully", success=True)
-                print(f"Training successful for {name}")
+                logging.info(f"Training successful for {name}")
                 return True, ""
             else:
                 debug = True
@@ -96,7 +100,7 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
                     )
 
                 log_training_progress("Error Analysis", previous_error[:200])
-                print(f"Training failed for {name} (attempt {attempt + 1}): {previous_error}")
+                logging.info(f"Training failed for {name} (attempt {attempt + 1}): {previous_error}")
 
                 # If this is the last attempt, return failure
                 if attempt == Config.MAX_DEBUG_ATTEMPT - 1:
@@ -113,7 +117,7 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
         error_msg = f"Unexpected error during training: {str(e)}"
         log_error_context("Training Process", e, {"name": name, "motivation": motivation[:200]})
         log_training_progress("Training Error", error_msg, success=False)
-        print(error_msg)
+        logging.error(error_msg)
         return False, error_msg
 
 

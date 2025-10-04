@@ -11,10 +11,9 @@ import traceback
 from rag_service import OpenSearchRAGService
 import argparse
 
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
-logger = logging.getLogger(__name__)
+
 # Create Flask application
 app = Flask(__name__)
 CORS(app)  # Enable Cross-Origin Resource Sharing (CORS)
@@ -26,7 +25,7 @@ def init_rag_service(data_dir: str):
     """Initialize the RAG service"""
     global rag_service
     try:
-        logger.info("Initializing RAG service...")
+        logging.info("Initializing RAG service...")
         rag_service = OpenSearchRAGService()
 
         # Load and index data
@@ -34,18 +33,18 @@ def init_rag_service(data_dir: str):
         if documents:
             success = rag_service.index_documents(documents)
             if success:
-                logger.info("RAG service initialization successful")
+                logging.info("RAG service initialization successful")
                 return True
             else:
-                logger.error("Document indexing failed")
+                logging.error("Document indexing failed")
                 return False
         else:
-            logger.error("No documents loaded")
+            logging.error("No documents loaded")
             return False
 
     except Exception as e:
-        logger.error(f"Error initializing RAG service: {e}")
-        logger.error(traceback.format_exc())
+        logging.error(f"Error initializing RAG service: {e}")
+        verror(traceback.format_exc())
         return False
 
 # Note: The before_first_request decorator has been removed in Flask 2.2+
@@ -55,8 +54,8 @@ def init_rag_service(data_dir: str):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Global exception handler"""
-    logger.error(f"Unhandled exception: {e}")
-    logger.error(traceback.format_exc())
+    logging.error(f"Unhandled exception: {e}")
+    logging.error(traceback.format_exc())
     return jsonify({
         "error": "Internal Server Error",
         "message": str(e)
@@ -136,8 +135,8 @@ def search_patterns():
         })
 
     except Exception as e:
-        logger.error(f"Error during search: {e}")
-        logger.error(traceback.format_exc())
+        logging.error(f"Error during search: {e}")
+        logging.error(traceback.format_exc())
         return jsonify({
             "error": "Search failed",
             "message": str(e)
@@ -167,8 +166,8 @@ def get_paper_documents(paper_key):
         })
 
     except Exception as e:
-        logger.error(f"Error during paper key search: {e}")
-        logger.error(traceback.format_exc())
+        logging.error(f"Error during paper key search: {e}")
+        logging.error(traceback.format_exc())
         return jsonify({
             "error": "Search failed",
             "message": str(e)
@@ -188,8 +187,8 @@ def get_statistics():
         return jsonify(stats)
 
     except Exception as e:
-        logger.error(f"Error getting statistics: {e}")
-        logger.error(traceback.format_exc())
+        logging.error(f"Error getting statistics: {e}")
+        logging.error(traceback.format_exc())
         return jsonify({
             "error": "Failed to get statistics",
             "message": str(e)
@@ -213,8 +212,8 @@ def reinitialize_service():
             }), 500
 
     except Exception as e:
-        logger.error(f"Error during re-initialization: {e}")
-        logger.error(traceback.format_exc())
+        logging.error(f"Error during re-initialization: {e}")
+        logging.error(traceback.format_exc())
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -255,20 +254,20 @@ def parse_arguments():
 
 
 if __name__ == '__main__':
-    print("Starting RAG API service...")
-    print("Initializing RAG Service...")
+    logging.info("Starting RAG API service...")
+    logging.info("Initializing RAG Service...")
 
     args = parse_arguments()
     # Initialize the RAG service before starting the Flask application
     success = init_rag_service(data_dir=args.data_dir)
     if not success:
-        print("❌ RAG service initialization failed, please check the logs")
+        logging.warning("❌ RAG service initialization failed, please check the logs")
         exit(1)
 
-    print("✅ RAG service initialized successfully")
-    print("API Documentation: http://localhost:5000/")
-    print("Health Check: http://localhost:5000/health")
-    print("Statistics: http://localhost:5000/stats")
+    logging.info("✅ RAG service initialized successfully")
+    logging.info("API Documentation: http://localhost:5000/")
+    logging.info("Health Check: http://localhost:5000/health")
+    logging.info("Statistics: http://localhost:5000/stats")
 
     app.run(
         host='0.0.0.0',

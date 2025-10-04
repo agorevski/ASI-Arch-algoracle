@@ -588,12 +588,12 @@ def main():
         logger.error("Document indexing failed")
         return
 
-    # Print statistics
+    # Log statistics
     stats = rag_service.get_stats()
-    print("\n=== Index Statistics ===")
-    print(f"Total Documents: {stats.get('total_documents', 0)}")
-    print(f"Number of Unique Papers: {stats.get('unique_papers', 0)}")
-    print(f"Index Name: {stats.get('index_name', 'unknown')}")
+    logger.info("=== Index Statistics ===")
+    logger.info(f"Total Documents: {stats.get('total_documents', 0)}")
+    logger.info(f"Number of Unique Papers: {stats.get('unique_papers', 0)}")
+    logger.info(f"Index Name: {stats.get('index_name', 'unknown')}")
 
     # Example queries
     test_queries = [
@@ -603,16 +603,15 @@ def main():
         "Sequence modeling bottlenecks"
     ]
 
-    print("\n=== Example Query Results ===")
+    logger.info("=== Example Query Results ===")
     for query in test_queries:
-        print(f"\nQuery: {query}")
+        logger.info(f"Query: {query}")
         results = rag_service.search_similar_patterns(query, k=3)
 
         for i, result in enumerate(results, 1):
-            print(f"  {i}. Paper: {result['paper_key']}")
-            print(f"     Similarity: {result['score']:.3f}")
-            print(f"     Trigger Patterns: {result['EXPERIMENTAL_TRIGGER_PATTERNS'][:100]}...")
-            print()
+            logger.info(f"  {i}. Paper: {result['paper_key']}")
+            logger.info(f"     Similarity: {result['score']:.3f}")
+            logger.info(f"     Trigger Patterns: {result['EXPERIMENTAL_TRIGGER_PATTERNS'][:100]}...")
 
 
 if __name__ == "__main__":

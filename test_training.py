@@ -6,14 +6,18 @@ Test script to verify the training pipeline works correctly
 import subprocess
 import sys
 import os
+import logging
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
 
 
 def test_deltanet_training():
     """Test that DeltaNet can be loaded and trained"""
 
-    print("🧪 Testing DeltaNet training pipeline...")
-    print("=" * 50)
+    logging.info("🧪 Testing DeltaNet training pipeline...")
+    logging.info("=" * 50)
 
     # Change to pipeline directory
     os.chdir("pipeline")
@@ -30,54 +34,54 @@ def test_deltanet_training():
             "--model_name", "DeltaNet-Test"
         ]
 
-        print(f"Running: {' '.join(cmd)}")
-        print("-" * 50)
+        logging.info(f"Running: {' '.join(cmd)}")
+        logging.info("-" * 50)
 
         result = subprocess.run(cmd, capture_output=True, text=True)
 
-        print("STDOUT:")
-        print(result.stdout)
+        logging.info("STDOUT:")
+        logging.info(result.stdout)
 
         if result.stderr:
-            print("\nSTDERR:")
-            print(result.stderr)
+            logging.warning("\nSTDERR:")
+            logging.warning(result.stderr)
 
         if result.returncode == 0:
-            print("\n✅ Training test completed successfully!")
+            logging.info("\n✅ Training test completed successfully!")
 
             # Check if output files were created
             loss_file = Path("files/analysis/loss.csv")
             benchmark_file = Path("files/analysis/benchmark.csv")
 
             if loss_file.exists():
-                print(f"✅ Loss file created: {loss_file}")
+                logging.info(f"✅ Loss file created: {loss_file}")
                 # Show first few lines
                 with open(loss_file, 'r') as f:
                     lines = f.readlines()[:5]
-                    print("   Sample content:")
+                    logging.info("   Sample content:")
                     for line in lines:
-                        print(f"   {line.strip()}")
+                        logging.info(f"   {line.strip()}")
             else:
-                print(f"❌ Loss file not found: {loss_file}")
+                logging.warning(f"❌ Loss file not found: {loss_file}")
 
             if benchmark_file.exists():
-                print(f"✅ Benchmark file created: {benchmark_file}")
+                logging.info(f"✅ Benchmark file created: {benchmark_file}")
                 # Show content
                 with open(benchmark_file, 'r') as f:
                     content = f.read().strip()
-                    print("   Content:")
+                    logging.info("   Content:")
                     for line in content.split('\n'):
-                        print(f"   {line}")
+                        logging.info(f"   {line}")
             else:
-                print(f"❌ Benchmark file not found: {benchmark_file}")
+                logging.warning(f"❌ Benchmark file not found: {benchmark_file}")
 
             return True
         else:
-            print(f"\n❌ Training test failed with return code: {result.returncode}")
+            logging.warning(f"\n❌ Training test failed with return code: {result.returncode}")
             return False
 
     except Exception as e:
-        print(f"❌ Test failed with exception: {e}")
+        logging.warning(f"❌ Test failed with exception: {e}")
         return False
     finally:
         # Change back to root directory
@@ -87,8 +91,8 @@ def test_deltanet_training():
 def main():
     """Main test function"""
 
-    print("🔧 ASI-Arch Training Pipeline Test")
-    print("=" * 60)
+    logging.info("🔧 ASI-Arch Training Pipeline Test")
+    logging.info("=" * 60)
 
     # Check if required files exist
     required_files = [
@@ -97,32 +101,32 @@ def main():
         "pipeline/config.py"
     ]
 
-    print("\n📋 Checking required files...")
+    logging.info("\n📋 Checking required files...")
     all_files_exist = True
     for file_path in required_files:
         if Path(file_path).exists():
-            print(f"✅ {file_path}")
+            logging.info(f"✅ {file_path}")
         else:
-            print(f"❌ {file_path} - NOT FOUND")
+            logging.warning(f"❌ {file_path} - NOT FOUND")
             all_files_exist = False
 
     if not all_files_exist:
-        print("\n❌ Some required files are missing!")
+        logging.warning("\n❌ Some required files are missing!")
         return False
 
     # Test training
-    print("\n🏃 Running training test...")
+    logging.info("\n🏃 Running training test...")
     success = test_deltanet_training()
 
     if success:
-        print("\n" + "=" * 60)
-        print("🎉 All tests passed! Training pipeline is working correctly.")
-        print("   You can now initialize the database and run experiments:")
-        print("   1. python init_seed_architecture.py")
-        print("   2. cd pipeline && python pipeline.py")
+        logging.info("\n" + "=" * 60)
+        logging.info("🎉 All tests passed! Training pipeline is working correctly.")
+        logging.info("   You can now initialize the database and run experiments:")
+        logging.info("   1. python init_seed_architecture.py")
+        logging.info("   2. cd pipeline && python pipeline.py")
     else:
-        print("\n" + "=" * 60)
-        print("❌ Tests failed. Please check the error messages above.")
+        logging.warning("\n" + "=" * 60)
+        logging.warning("❌ Tests failed. Please check the error messages above.")
 
     return success
 

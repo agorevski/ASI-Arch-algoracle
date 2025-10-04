@@ -9,6 +9,9 @@ from pathlib import Path
 import csv
 import io
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
+
 
 class AgentLogger:
     """Agent call logger"""
@@ -80,7 +83,7 @@ class AgentLogger:
             summary: Pipeline summary information
         """
         if not self.current_pipeline_id:
-            print("Warning: No active pipeline to end")
+            logging.warning("Warning: No active pipeline to end")
             return
 
         # Get the pipeline's usage statistics
@@ -320,7 +323,7 @@ class AgentLogger:
                         continue
             return total_usage
         except Exception as e:
-            print(f"Warning: Failed to read pipeline usage from log: {e}")
+            logging.warning(f"Warning: Failed to read pipeline usage from log: {e}")
             return total_usage
 
     def _serialize_data(self, data: Any, max_depth: int = 5, current_depth: int = 0) -> Any:
@@ -385,7 +388,7 @@ class AgentLogger:
             with open(self.main_log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(log_data, ensure_ascii=False, indent=None) + '\n')
         except Exception as e:
-            print(f"Failed to write log: {e}")
+            logging.warning(f"Failed to write log: {e}")
 
     def _create_detailed_log(self, call_id: str, agent_name: str, start_log: Dict, end_log: Dict) -> None:
         """Creates a detailed log file for a single call"""
@@ -404,10 +407,10 @@ class AgentLogger:
                 with open(log_file, 'w', encoding='utf-8') as f:
                     json.dump(log_content, f, ensure_ascii=False, indent=2)
             except Exception as e:
-                print(f"Failed to create detailed log: {e}")
+                logging.error(f"Failed to create detailed log: {e}")
 
         except Exception as e:
-            print(f"Failed to create detailed log: {e}")
+            logging.error(f"Failed to create detailed log: {e}")
 
     def _write_pipeline_log(self, log_data: Dict[str, Any]) -> None:
         """Writes the log to the pipeline-specific log file"""
@@ -416,7 +419,7 @@ class AgentLogger:
                 with open(self.pipeline_log_file, 'a', encoding='utf-8') as f:
                     f.write(json.dumps(log_data, ensure_ascii=False, indent=None) + '\n')
         except Exception as e:
-            print(f"Failed to write pipeline log: {e}")
+            logging.error(f"Failed to write pipeline log: {e}")
 
     def _write_full_log(self, message: str, level: str = "INFO") -> None:
         """Writes the full log to the pipeline's full log file"""
@@ -427,9 +430,9 @@ class AgentLogger:
                 with open(self.pipeline_full_log_file, 'a', encoding='utf-8') as f:
                     f.write(log_entry)
             # Output to console as well
-            print(f"[{level}] {message}")
+            logging.info(f"[{level}] {message}")
         except Exception as e:
-            print(f"Failed to write full log: {e}")
+            logging.error(f"Failed to write full log: {e}")
 
     def log_info(self, message: str) -> None:
         """Logs an info message"""
@@ -528,7 +531,7 @@ class AgentLogger:
             return stats
 
         except Exception as e:
-            print(f"Failed to get stats: {e}")
+            logging.error(f"Failed to get stats: {e}")
             return {"error": str(e)}
 
 

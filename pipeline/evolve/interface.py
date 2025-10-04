@@ -1,3 +1,4 @@
+import logging
 from .prompt import Planner_input, Motivation_checker_input, Deduplication_input, CodeChecker_input
 from .model import planner, motivation_checker, deduplication, code_checker
 from agents import exceptions
@@ -6,9 +7,12 @@ from config import Config
 from database.mongo_database import create_client
 from utils.verbose_logger import verbose_log_agent_run, log_file_operation, log_error_context
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
+
 
 async def evolve(context: str) -> Tuple[str, str]:
-    for attempt in range(Config.MAX_RETRY_ATTEMPTS):
+    for _ in range(Config.MAX_RETRY_ATTEMPTS):
         # Read and log original source file
         with open(Config.SOURCE_FILE, 'r') as f:
             original_source = f.read()
@@ -24,7 +28,7 @@ async def evolve(context: str) -> Tuple[str, str]:
 
         with open(Config.SOURCE_FILE, 'w') as f:
             f.write(original_source)
-        print("Try new motivations")
+        logging.info("Try new motivations")
     return "Failed", "evolve error"
 
 
@@ -56,18 +60,18 @@ async def gen(context: str) -> Tuple[str, str]:
 
             repeated_result = await check_repeated_motivation(motivation)
             if repeated_result.is_repeated:
-                print(f"Attempt {attempt + 1}: Motivation repeated, index is {repeated_result.repeated_index}")
+                logging.info(f"Attempt {attempt + 1}: Motivation repeated, index is {repeated_result.repeated_index}")
                 if attempt == Config.MAX_RETRY_ATTEMPTS - 1:
                     raise Exception("Maximum retry attempts reached, unable to generate non-repeated motivation")
                 continue
             else:
-                print(f"Attempt {attempt + 1}: Motivation not repeated, continue execution")
-                print(motivation)
+                logging.info(f"Attempt {attempt + 1}: Motivation not repeated, continue execution")
+                logging.info(motivation)
                 return name, motivation
         except exceptions.MaxTurnsExceeded:
-            print(f"Attempt {attempt + 1} exceeded maximum dialogue turns")
+            logging.info(f"Attempt {attempt + 1} exceeded maximum dialogue turns")
         except Exception as e:
-            print(f"Attempt {attempt + 1} error: {e}")
+            logging.error(f"Attempt {attempt + 1} error: {e}")
             raise e
 
 
@@ -83,23 +87,23 @@ async def check_code_correctness(motivation) -> bool:
             )
 
             if code_checker_result.final_output.success:
-                print("Code checker passed - code looks correct")
+                logging.info("Code checker passed - code looks correct")
                 return True
             else:
                 error_msg = code_checker_result.final_output.error
-                print(f"Code checker found issues: {error_msg}")
+                logging.error(f"Code checker found issues: {error_msg}")
                 if attempt == Config.MAX_RETRY_ATTEMPTS - 1:
-                    print("Reaching checking limits")
+                    logging.info("Reaching checking limits")
                     return False
                 continue
 
         except exceptions.MaxTurnsExceeded as e:
             log_error_context("Code Checker", e, {"attempt": attempt + 1})
-            print("Code checker exceeded maximum turns")
+            logging.info("Code checker exceeded maximum turns")
             return False
         except Exception as e:
             log_error_context("Code Checker", e, {"attempt": attempt + 1, "motivation": motivation[:200]})
-            print(f"Code checker error: {e}")
+            logging.error(f"Code checker error: {e}")
             return False
 
 

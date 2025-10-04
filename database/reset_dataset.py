@@ -1,5 +1,9 @@
 import requests
 from datetime import datetime
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
+
 # API Configuration
 API_BASE_URL = "http://localhost:8001"
 
@@ -14,19 +18,18 @@ def add_element_via_api(element_data):
         response.raise_for_status()  # Raises an exception for bad status codes
 
         result = response.json()
-        print(f"✅ Successfully added: {result}")
+        logging.info(f"Successfully added: {result}")
         return True
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to add: {e}")
+        logging.warning(f"Failed to add: {e}")
         if hasattr(e, 'response') and e.response is not None:
             try:
                 error_detail = e.response.json()
-                print(f"Error details: {error_detail}")
+                logging.warning(f"Error details: {error_detail}")
             except Exception:
-                print(f"Response content: {e.response.text}")
+                logging.warning(f"Response content: {e.response.text}")
         return False
-
 
 # Prepare the data
 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -336,53 +339,53 @@ element_data = {
     "motivation": motivation
 }
 # Add the data
-print("🗑️ Deleting all existing data...")
+logging.info("🗑️ Deleting all existing data...")
 delete_url = f"{API_BASE_URL}/elements/all"
 try:
     delete_response = requests.delete(delete_url)
     delete_response.raise_for_status()
-    print("✅ Old data deleted successfully!")
+    logging.info("✅ Old data deleted successfully!")
 except requests.exceptions.RequestException as e:
-    print(f"❌ Failed to delete old data: {e}")
+    logging.warning(f"❌ Failed to delete old data: {e}")
     if hasattr(e, 'response') and e.response is not None:
         try:
             error_detail = e.response.json()
-            print(f"Error details: {error_detail}")
+            logging.warning(f"Error details: {error_detail}")
         except Exception:
-            print(f"Response content: {e.response.text}")
-print("Starting to add DeltaNet experiment data...")
-print(f"Time: {current_time}")
-print(f"Target API: {API_BASE_URL}")
+            logging.warning(f"Response content: {e.response.text}")
+logging.info("Starting to add DeltaNet experiment data...")
+logging.info(f"Time: {current_time}")
+logging.info(f"Target API: {API_BASE_URL}")
 success = add_element_via_api(element_data)
 if success:
-    print("\n🎉 Data addition complete!")
+    logging.info("\n🎉 Data addition complete!")
 
     # Verify that the data was added successfully
-    print("\nVerifying data...")
+    logging.info("\nVerifying data...")
     try:
         stats_response = requests.get(f"{API_BASE_URL}/stats")
         if stats_response.status_code == 200:
             stats = stats_response.json()
-            print(f"📊 Current database statistics: {stats['total_records']} records")
+            logging.info(f"📊 Current database statistics: {stats['total_records']} records")
         else:
-            print("Failed to retrieve database statistics")
+            logging.warning("Failed to retrieve database statistics")
     except Exception as e:
-        print(f"Failed to get statistics: {e}")
+        logging.warning(f"Failed to get statistics: {e}")
     # Adding PUT /candidates/1 command, the add command is incorrect. It should be a POST.
-    print("\nAttempting to add index=1 to the candidate set...")
+    logging.info("\nAttempting to add index=1 to the candidate set...")
     add_candidate_url = f"{API_BASE_URL}/candidates/1/add"
     try:
         add_response = requests.post(add_candidate_url)
         add_response.raise_for_status()
         add_result = add_response.json()
-        print(f"✅ Successfully added index 1 to candidate set: {add_result}")
+        logging.info(f"✅ Successfully added index 1 to candidate set: {add_result}")
     except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to add to candidate set: {e}")
+        logging.warning(f"❌ Failed to add to candidate set: {e}")
         if hasattr(e, 'response') and e.response is not None:
             try:
                 error_detail = e.response.json()
-                print(f"Error details: {error_detail}")
+                logging.warning(f"Error details: {error_detail}")
             except Exception:
-                print(f"Response content: {e.response.text}")
+                logging.warning(f"Response content: {e.response.text}")
 else:
-    print("\n❌ Data addition failed! Please check if the API service is running correctly")
+    logging.warning("\n❌ Data addition failed! Please check if the API service is running correctly")

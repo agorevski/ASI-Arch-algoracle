@@ -17,6 +17,9 @@ from typing import Dict, List, Optional, Tuple
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pipeline'))
 from config import Config
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
+
 
 def extract_text_and_images_from_pdf(pdf_path: str) -> Tuple[str, List[Dict]]:
     """

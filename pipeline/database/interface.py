@@ -6,9 +6,8 @@ from .element import DataElement
 from .mongo_database import create_client
 from utils.verbose_logger import log_database_operation, log_file_operation, log_error_context
 
-# Set up logging
-logger = logging.getLogger(__name__)
-
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
 
 # Create database instance
 db = create_client()
@@ -40,14 +39,14 @@ async def program_sample() -> Tuple[str, int]:
     try:
         parent_candidates = db.candidate_sample_from_range(1, 10, 1)
         if not parent_candidates:
-            logger.warning("No candidates found in range 1-10, falling back to regular sampling")
+            logging.warning("No candidates found in range 1-10, falling back to regular sampling")
             log_database_operation("Fallback to Regular Sampling", {
                 "reason": "No candidates in range 1-10"
             })
             parent_candidates = db.sample_from_range(1, 10, 1)
 
         if not parent_candidates:
-            logger.warning("No elements found in regular sampling, using UCT selection")
+            logging.warning("No elements found in regular sampling, using UCT selection")
             log_database_operation("Fallback to UCT Selection", {
                 "reason": "No elements in regular sampling"
             })
@@ -65,14 +64,14 @@ async def program_sample() -> Tuple[str, int]:
 
     except Exception as e:
         log_error_context("Parent Element Sampling", e)
-        logger.error(f"Failed to get parent element: {e}")
+        logging.error(f"Failed to get parent element: {e}")
         # Final fallback: try to get any available element
         try:
             parent_element = db.sample_element()
             if parent_element is None:
                 raise ValueError("Database appears to be empty - no elements available")
         except Exception as fallback_error:
-            logger.error(f"All fallback methods failed: {fallback_error}")
+            logging.error(f"All fallback methods failed: {fallback_error}")
             raise ValueError("Unable to retrieve any elements from database") from e
 
     # Get reference elements with error handling
@@ -85,12 +84,12 @@ async def program_sample() -> Tuple[str, int]:
     try:
         ref_elements = db.candidate_sample_from_range(11, 50, 4)
         if not ref_elements:
-            logger.warning("No candidates found in range 11-50, falling back to regular sampling")
+            logging.warning("No candidates found in range 11-50, falling back to regular sampling")
             log_database_operation("Fallback to Regular Reference Sampling", {"reason": "No candidates in range 11-50"})
             ref_elements = db.sample_from_range(11, 50, 4)
 
         if not ref_elements:
-            logger.warning("No reference elements found, using fewer elements or empty list")
+            logging.warning("No reference elements found, using fewer elements or empty list")
             ref_elements = []
 
         log_database_operation("Reference Elements Retrieved", {
@@ -100,7 +99,7 @@ async def program_sample() -> Tuple[str, int]:
 
     except Exception as e:
         log_error_context("Reference Elements Sampling", e)
-        logger.warning(f"Failed to get reference elements: {e}, using empty list")
+        logging.warning(f"Failed to get reference elements: {e}, using empty list")
         ref_elements = []
 
     # Build context from parent and reference elements
@@ -125,7 +124,7 @@ async def program_sample() -> Tuple[str, int]:
 
     with open(Config.SOURCE_FILE, 'w', encoding='utf-8') as f:
         f.write(parent_element.program)
-        print(f"[DATABASE] Implement Changes selected node (index: {parent})")
+        logging.info(f"[DATABASE] Implement Changes selected node (index: {parent})")
 
     return context, parent
 

@@ -119,21 +119,21 @@ class SeedArchitectureInitializer(ABC):
         url = f"{self.api_base_url}/elements"
 
         try:
-            print("Sending seed element to database...")
+            logging.info("Sending seed element to database...")
             response = requests.post(url, json=element, timeout=30)
 
             if response.status_code == 200:
                 result = response.json()
-                print("✅ Seed element added successfully!")
-                print(f"   Element ID: {result.get('message', 'Added')}")
+                logging.info("✅ Seed element added successfully!")
+                logging.info(f"   Element ID: {result.get('message', 'Added')}")
                 return True
             else:
-                print(f"❌ Failed to add seed element: {response.status_code}")
-                print(f"   Response: {response.text}")
+                logging.error(f"❌ Failed to add seed element: {response.status_code}")
+                logging.error(f"   Response: {response.text}")
                 return False
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error connecting to database API: {e}")
+            logging.error(f"❌ Error connecting to database API: {e}")
             return False
 
     def update_candidate_storage(self) -> bool:
@@ -154,31 +154,31 @@ class SeedArchitectureInitializer(ABC):
             with open(candidate_file, 'w') as f:
                 json.dump(storage, f, indent=2)
 
-            print("✅ Updated candidate_storage.json")
+            logging.info("✅ Updated candidate_storage.json")
             return True
 
         except Exception as e:
-            print(f"❌ Failed to update candidate storage: {e}")
+            logging.error(f"❌ Failed to update candidate storage: {e}")
             return False
 
     async def run(self) -> bool:
         """Main initialization function"""
 
-        print(f"🚀 Initializing ASI-Arch with seed {self.get_display_name()}")
-        print("=" * 60)
+        logging.info(f"🚀 Initializing ASI-Arch with seed {self.get_display_name()}")
+        logging.info("=" * 60)
 
         # Check if database API is running
         try:
             response = requests.get(f"{self.api_base_url}/stats", timeout=5)
             if response.status_code == 200:
                 stats = response.json()
-                print(f"📊 Database Status: {stats['total_records']} records")
+                logging.info(f"📊 Database Status: {stats['total_records']} records")
             else:
-                print("❌ Database API not responding properly")
+                logging.error("❌ Database API not responding properly")
                 return False
         except requests.exceptions.RequestException:
-            print("❌ Database API not accessible. Please start the database service first.")
-            print("   Run: cd database && ./start_api.sh")
+            logging.error("❌ Database API not accessible. Please start the database service first.")
+            logging.error("   Run: cd database && ./start_api.sh")
             return False
 
         # Add seed element to database
@@ -196,18 +196,19 @@ class SeedArchitectureInitializer(ABC):
             response = requests.get(f"{self.api_base_url}/stats", timeout=5)
             if response.status_code == 200:
                 stats = response.json()
-                print(f"📊 Updated Database: {stats['total_records']} records")
+                logging.info(f"📊 Updated Database: {stats['total_records']} records")
 
             response = requests.get(f"{self.api_base_url}/candidates/all", timeout=5)
             if response.status_code == 200:
                 candidates = response.json()
-                print(f"🎯 Candidate Pool: {len(candidates)} candidates")
+                logging.info(f"🎯 Candidate Pool: {len(candidates)} candidates")
         except Exception as e:
-            print(f"❌ Error verifying addition: {e}")
+            logging.error(f"❌ Error verifying addition: {e}")
             return False
 
-        print("=" * 60)
-        print("✅ ASI-Arch initialization complete!")
-        print("   You can now run experiments with: cd pipeline && python pipeline.py")
+        logging.info("=" * 60)
+        logging.info("✅ ASI-Arch initialization complete!")
+        logging.info("   You can now run experiments with: cd pipeline && python pipeline.py")
 
         return True
+

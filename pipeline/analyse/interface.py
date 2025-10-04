@@ -1,7 +1,9 @@
 import csv
 import io
+import logging
 import os
 import re
+import logging
 from datetime import datetime
 from typing import Optional, Any
 
@@ -178,10 +180,10 @@ async def run_analyzer(
 
         except exceptions.MaxTurnsExceeded as e:
             log_error_context("Analyzer", e, {"attempt": attempt + 1, "name": name})
-            print(f"Analyzer exceeded maximum turns, attempt {attempt + 1}")
+            logging.warning(f"Analyzer exceeded maximum turns, attempt {attempt + 1}")
         except Exception as e:
             log_error_context("Analyzer", e, {"attempt": attempt + 1, "name": name})
-            print(f"Analyzer error on attempt {attempt + 1}: {e}")
+            logging.error(f"Analyzer error on attempt {attempt + 1}: {e}")
 
     return None
 
