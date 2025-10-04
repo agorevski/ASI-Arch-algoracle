@@ -4,15 +4,16 @@ Initialize ASI-Arch with seed DeltaNet architecture
 This script adds the baseline DeltaNet architecture to the database to start experiments.
 """
 
-import json
 import asyncio
-from datetime import datetime
-import logging
-from pathlib import Path
-import requests
+import os
+from init_seed_architecture import SeedArchitectureInitializer
 
-# Sample training and test results for the seed architecture
-SEED_TRAIN_RESULT = """step,loss
+
+class DeltaNetSeeder(SeedArchitectureInitializer):
+    """Default DeltaNet seed architecture"""
+
+    def get_train_result(self) -> str:
+        return """step,loss
 0,4.234
 100,3.891
 200,3.456
@@ -20,32 +21,12 @@ SEED_TRAIN_RESULT = """step,loss
 400,2.890
 500,2.654"""
 
-SEED_TEST_RESULT = """model,arc_easy,arc_challenge,hellaswag,mmlu,truthfulqa,winogrande,gsm8k
+    def get_test_result(self) -> str:
+        return """model,arc_easy,arc_challenge,hellaswag,mmlu,truthfulqa,winogrande,gsm8k
 DeltaNet-Base,0.6234,0.4156,0.5789,0.4523,0.3891,0.6012,0.2345"""
 
-
-def read_source_file():
-    """Read the DeltaNet source code"""
-    source_path = Path("pipeline/pool/deltanet_base.py")
-    if not source_path.exists():
-        raise FileNotFoundError(f"Source file not found: {source_path}")
-
-    with open(source_path, 'r', encoding='utf-8') as f:
-        return f.read()
-
-
-def create_seed_element():
-    """Create the seed data element"""
-    current_time = datetime.now().isoformat()
-
-    program = read_source_file()
-
-    result = {
-        "train": SEED_TRAIN_RESULT,
-        "test": SEED_TEST_RESULT
-    }
-
-    analysis = """Initial Analysis of DeltaNet Architecture:
+    def get_analysis(self) -> str:
+        return """Initial Analysis of DeltaNet Architecture:
 
 Architecture Overview:
 - Model Type: Linear Attention Transformer with Delta Rule
@@ -75,7 +56,8 @@ Areas for Improvement:
 
 This baseline provides a solid foundation for evolutionary improvements in linear attention mechanisms."""
 
-    cognition = """Relevant Research Context:
+    def get_cognition(self) -> str:
+        return """Relevant Research Context:
 
 The DeltaNet architecture builds upon several key innovations in linear attention:
 
@@ -99,7 +81,8 @@ Key Papers:
 
 This foundation enables systematic exploration of linear attention variants."""
 
-    log = """Training Log for DeltaNet Base Architecture:
+    def get_log(self) -> str:
+        return """Training Log for DeltaNet Base Architecture:
 
 [2024-01-13 22:11:50] Starting DeltaNet training
 [2024-01-13 22:11:50] Model parameters: 23,456,789
@@ -122,7 +105,8 @@ This foundation enables systematic exploration of linear attention variants."""
 
 Training completed successfully. Model shows stable convergence and competitive performance."""
 
-    motivation = """Research Motivation for DeltaNet Architecture:
+    def get_motivation(self) -> str:
+        return """Research Motivation for DeltaNet Architecture:
 
 The development of efficient attention mechanisms for long sequence modeling represents a critical challenge in modern NLP. Standard transformer attention scales quadratically with sequence length, limiting practical applications to relatively short contexts. This motivates exploration of linear attention variants.
 
@@ -143,123 +127,24 @@ This architecture serves as a testbed for understanding the trade-offs between c
 
 The goal is to push the boundaries of what's possible with efficient sequence modeling while maintaining or improving upon transformer performance."""
 
-    return {
-        "time": current_time,
-        "name": "DeltaNet-Base-Seed",
-        "result": result,
-        "program": program,
-        "analysis": analysis,
-        "cognition": cognition,
-        "log": log,
-        "motivation": motivation,
-        "summary": "Baseline DeltaNet architecture with linear attention and delta rule mechanism. Serves as the foundation for ASI-Arch evolutionary experiments."
-    }
+    def get_name(self) -> str:
+        return "DeltaNet-Base-Seed"
 
+    def get_summary(self) -> str:
+        return "Baseline DeltaNet architecture with linear attention and delta rule mechanism. Serves as the foundation for ASI-Arch evolutionary experiments."
 
-async def add_seed_to_database():
-    """Add the seed element to the database via API"""
+    def get_display_name(self) -> str:
+        return "DeltaNet architecture"
 
-    logging.info("Creating seed DeltaNet element...")
-    element = create_seed_element()
-
-    # API endpoint
-    url = "http://localhost:8001/elements"
-
-    try:
-        print("Sending seed element to database...")
-        response = requests.post(url, json=element, timeout=30)
-
-        if response.status_code == 200:
-            result = response.json()
-            print("✅ Seed element added successfully!")
-            print(f"   Element ID: {result.get('message', 'Added')}")
-            return True
-        else:
-            print(f"❌ Failed to add seed element: {response.status_code}")
-            print(f"   Response: {response.text}")
-            return False
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error connecting to database API: {e}")
-        return False
-
-
-def update_candidate_storage():
-    """Update the candidate storage JSON file"""
-
-    candidate_file = Path("database/candidate_storage.json")
-
-    try:
-        # Read current candidate storage
-        with open(candidate_file, 'r') as f:
-            storage = json.load(f)
-
-        # Update with seed information
-        storage["candidates"] = [1]  # Index 1 will be the seed element
-        storage["new_data_count"] = 1
-        storage["last_updated"] = datetime.now().isoformat()
-
-        # Write back
-        with open(candidate_file, 'w') as f:
-            json.dump(storage, f, indent=2)
-
-        print("✅ Updated candidate_storage.json")
-        return True
-
-    except Exception as e:
-        print(f"❌ Failed to update candidate storage: {e}")
-        return False
+    def get_source_path(self) -> str:
+        """Return the seed element source path"""
+        return os.path.join(self.get_pipeline_path(), "pool", "deltanet_base.py")
 
 
 async def main():
     """Main initialization function"""
-
-    print("🚀 Initializing ASI-Arch with seed DeltaNet architecture")
-    print("=" * 60)
-
-    # Check if database API is running
-    try:
-        response = requests.get("http://localhost:8001/stats", timeout=5)
-        if response.status_code == 200:
-            stats = response.json()
-            print(f"📊 Database Status: {stats['total_records']} records")
-        else:
-            print("❌ Database API not responding properly")
-            return False
-    except requests.exceptions.RequestException:
-        print("❌ Database API not accessible. Please start the database service first.")
-        print("   Run: cd database && ./start_api.sh")
-        return False
-
-    # Add seed element to database
-    success = await add_seed_to_database()
-    if not success:
-        return False
-
-    # Update candidate storage
-    success = update_candidate_storage()
-    if not success:
-        return False
-
-    # Verify the addition
-    try:
-        response = requests.get("http://localhost:8001/stats", timeout=5)
-        if response.status_code == 200:
-            stats = response.json()
-            print(f"📊 Updated Database: {stats['total_records']} records")
-
-        response = requests.get("http://localhost:8001/candidates/all", timeout=5)
-        if response.status_code == 200:
-            candidates = response.json()
-            print(f"🎯 Candidate Pool: {len(candidates)} candidates")
-    except:
-        pass
-
-    print("=" * 60)
-    print("✅ ASI-Arch initialization complete!")
-    print("   You can now run experiments with: cd pipeline && python pipeline.py")
-
-    return True
+    seeder = DeltaNetSeeder()
+    return await seeder.run()
 
 if __name__ == "__main__":
     asyncio.run(main())

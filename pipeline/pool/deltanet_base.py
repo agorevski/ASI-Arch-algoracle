@@ -21,10 +21,10 @@ class DeltaRule(nn.Module):
         outputs = []
         # Sequential computation
         for t in range(seq_len):
-            q_t = q[:, t:t+1]  # [batch, 1, hidden_size]
-            k_t = k[:, t:t+1]  # [batch, 1, hidden_size]
-            v_t = v[:, t:t+1]  # [batch, 1, hidden_size]
-            beta_t = beta[:, t:t+1]  # [batch, 1, 1]
+            q_t = q[:, t:t + 1]  # [batch, 1, hidden_size]
+            k_t = k[:, t:t + 1]  # [batch, 1, hidden_size]
+            v_t = v[:, t:t + 1]  # [batch, 1, hidden_size]
+            beta_t = beta[:, t:t + 1]  # [batch, 1, 1]
             # Apply forgetting mechanism - fix dimension issues
             beta_expanded = beta_t.squeeze(-1).unsqueeze(-1)  # [batch, 1, 1]
             h_t = h_t * beta_expanded
@@ -91,7 +91,7 @@ class DeltaNetLayer(nn.Module):
             q_h = q[:, :, h]  # [batch, seq_len, head_dim]
             k_h = k[:, :, h]  # [batch, seq_len, head_dim]
             v_h = v[:, :, h]  # [batch, seq_len, head_dim]
-            beta_h = beta[:, :, h:h+1]  # [batch, seq_len, 1]
+            beta_h = beta[:, :, h:h + 1]  # [batch, seq_len, 1]
             # Apply delta rule
             out_h = self.delta_rule(q_h, k_h, v_h, beta_h)
             head_outputs.append(out_h)

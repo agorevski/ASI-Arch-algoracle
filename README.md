@@ -153,10 +153,16 @@ docker-compose up -d
 # Window 1 (Top)
 # Main Pipeline:
 conda activate asi-arch
-python init_seed_architecture.py # Database Initialization (only on first run - ensure databse is already started)
+# Run the following commands on first-run or for fresh model discovery - more detailed instructions below
+# python delete_all_database.py
+# python seed_invismark.py
 cd pipeline
 python pipeline.py # Running Architecture Discovery
 ```
+
+### Seeding the initial environment
+
+See [Database Initialization Guide](database/initialize/README.md) for more detailed dataabase seeding instructions.
 
 ## 🔧 Framework Components
 
