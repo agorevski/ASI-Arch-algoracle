@@ -17,6 +17,9 @@ class Config:
     # Target file
     SOURCE_FILE: str = f"{CODE_POOL}/deltanet_base.py"
 
+    # Cognition directory
+    COGNITION_DIR: str = "cognition/linear_attention"
+
     # Maximum number of debug attempts
     MAX_DEBUG_ATTEMPT: int = 5
 

@@ -59,7 +59,7 @@ def log_file_operation(operation: str, file_path: str, content_preview: str = No
         print(f"\t📊 Size: {size} bytes")
     if content_preview:
         print("\t📋 Content Preview:")
-        if len(content_preview) > 500:
+        if len(content_preview) > 250:
             print(content_preview[:250])
             print(f"... [TRUNCATED - showing first 250 of {len(content_preview)} chars] ...")
             print(content_preview[-250:])

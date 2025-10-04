@@ -8,7 +8,7 @@ This pipeline implements the best-practice approach for converting research pape
 
 The pipeline follows this workflow:
 
-```
+```text
 PDF Input → Text Extraction → Preprocessing → Field Generation → JSON Output
              (PyMuPDF)         (Cleaning)      (Azure OpenAI)     (Structured)
 ```

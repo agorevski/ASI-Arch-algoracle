@@ -4,12 +4,16 @@
 Web API Interface for RAG Service
 Provides HTTP REST API based on Flask.
 """
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
 import traceback
 from rag_service import OpenSearchRAGService
 import argparse
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pipeline'))
+from config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
@@ -44,7 +48,7 @@ def init_rag_service(data_dir: str):
 
     except Exception as e:
         logging.error(f"Error initializing RAG service: {e}")
-        verror(traceback.format_exc())
+        logging.error(traceback.format_exc())
         return False
 
 # Note: The before_first_request decorator has been removed in Flask 2.2+
@@ -246,20 +250,12 @@ def api_info():
     })
 
 
-def parse_arguments():
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description='RAG API Service')
-    parser.add_argument('--data_dir', type=str, default='cognition/linear_attention', help='Path to the RAG service folder to load data from')
-    return parser.parse_args()
-
-
 if __name__ == '__main__':
     logging.info("Starting RAG API service...")
     logging.info("Initializing RAG Service...")
 
-    args = parse_arguments()
     # Initialize the RAG service before starting the Flask application
-    success = init_rag_service(data_dir=args.data_dir)
+    success = init_rag_service(data_dir=Config.COGNITION_DIR)
     if not success:
         logging.warning("❌ RAG service initialization failed, please check the logs")
         exit(1)
