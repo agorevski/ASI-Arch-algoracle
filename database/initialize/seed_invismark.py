@@ -189,7 +189,7 @@ even after typical transformations, supporting transparency while minimizing use
 
     def get_source_path(self) -> str:
         """Return the seed element source path"""
-        return os.path.join(self.get_pipeline_path(), "pool", "invismark_base.py")
+        return os.path.join(self.get_pipeline_path(), "pool", "invismark", "invismark_base.py")
 
 
 async def main():

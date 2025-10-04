@@ -138,7 +138,7 @@ The goal is to push the boundaries of what's possible with efficient sequence mo
 
     def get_source_path(self) -> str:
         """Return the seed element source path"""
-        return os.path.join(self.get_pipeline_path(), "pool", "deltanet_base.py")
+        return os.path.join(self.get_pipeline_path(), "pool", "deltanet", "deltanet_base.py")
 
 
 async def main():

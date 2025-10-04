@@ -77,7 +77,7 @@ Submit to Claude Sonnet 4.5 (at time of writing) as a Plan, generate a plan, the
 - **Database API**: `database/README.md` (if exists) or `database/mongodb_api.py`
 - **Pipeline**: `pipeline/README.md` for running experiments
 - **Config**: `pipeline/config.py` for database connection settings
-- **Architecture Pool**: `pipeline/pool/` for architecture implementations
+- **Architecture Pool**: `pipeline/pool/[architecture_name]` for architecture implementations
 
 ---
 

@@ -1,7 +1,5 @@
 class Config:
     """Configuration settings for the experiment."""
-    # Target file
-    SOURCE_FILE: str = "./pool/deltanet_base.py"
 
     # Training script (should be in the /pipeline folder)
     TRAINING_SCRIPT: str = "train.py"
@@ -14,7 +12,10 @@ class Config:
     DEBUG_FILE: str = "./files/debug/training_error.txt"
 
     # Code pool directory
-    CODE_POOL: str = "./pool"
+    CODE_POOL: str = "./pool/deltanet"
+
+    # Target file
+    SOURCE_FILE: str = f"{CODE_POOL}/deltanet_base.py"
 
     # Maximum number of debug attempts
     MAX_DEBUG_ATTEMPT: int = 5
