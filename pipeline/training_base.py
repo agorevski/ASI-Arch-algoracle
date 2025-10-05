@@ -50,7 +50,7 @@ class TrainingConfig:
         if self.model_name is None:
             self.model_name = Path(self.model_file).stem
 
-        self.debug_dir = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings', 'architecture', Config['ARCHITECTURE'], 'debug'))
+        self.debug_dir = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings', 'architecture', Config.get('ARCHITECTURE'), 'debug'))
 
         # Ensure output directories
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
