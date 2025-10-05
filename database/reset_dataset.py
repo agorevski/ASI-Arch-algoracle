@@ -31,6 +31,7 @@ def add_element_via_api(element_data):
                 logging.warning(f"Response content: {e.response.text}")
         return False
 
+
 # Prepare the data
 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 # Complete raw data (including column names for logging)

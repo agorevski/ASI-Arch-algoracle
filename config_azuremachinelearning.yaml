@@ -1,0 +1,5 @@
+# Azure Machine Learning Configurations
+AML_SUBSCRIPTION_ID: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxx"
+AML_RESOURCE_GROUP: "xxxxxxxx"
+AML_WORKSPACE_NAME: "xxxxxxxx"
+AML_CLUSTER_NAME: "xxxxxxxx"

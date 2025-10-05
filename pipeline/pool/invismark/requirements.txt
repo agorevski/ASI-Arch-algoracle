@@ -1,0 +1,47 @@
+# InvisMark Image Watermarking Requirements
+
+# Azure ML
+azureml-core
+azureml-mlflow
+mlflow
+
+# Core ML frameworks
+torch
+torchvision
+torchmetrics
+
+# Image processing and augmentation
+kornia
+Pillow
+decord
+
+# Loss functions
+lpips
+focal-frequency-loss
+
+# BCH error correction
+bchlib
+
+# Configuration and utilities
+pyyaml
+numpy
+
+# Scientific computing
+scipy
+matplotlib
+
+# Logging and monitoring
+tensorboard
+
+# Distributed training (optional)
+# These are typically included with PyTorch
+# torch.distributed
+
+# Data handling
+# For video processing if needed
+# av>=10.0.0
+
+# Logging (standard library, but listing for completeness)
+# logging - built-in
+# uuid - built-in
+# struct - built-in

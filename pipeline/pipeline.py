@@ -5,7 +5,7 @@ from agents import set_default_openai_api, set_default_openai_client, set_tracin
 from openai import AsyncAzureOpenAI
 
 from analyse import analyse
-from database import program_sample, update
+from database.interface import program_sample, update
 from eval import evaluation
 from evolve import evolve
 from utils.agent_logger import end_pipeline, log_error, log_info, log_step, log_warning, start_pipeline

@@ -1,5 +1,5 @@
 # Training Configuration
-TRAINING_SCRIPT: "training_script_here.py"
+TRAINING_SCRIPT: "train.py"
 
 # Experiment Results
 RESULT_FILE: "./files/analysis/loss.csv"
@@ -14,7 +14,7 @@ CODE_POOL: "./pool/invismark"
 # SOURCE_FILE is automatically constructed as: {CODE_POOL}/{CODE_POOL_FOLDERNAME}_base.py
 
 # Model Architecture Directory
-ARCHITECTURE: "model_architecture_name_here"
+ARCHITECTURE: "invismark"
 
 # Retry and Debug Limits
 MAX_DEBUG_ATTEMPT: 5
@@ -23,9 +23,3 @@ MAX_RETRY_ATTEMPTS: 20
 # Service URLs
 RAG: "http://127.0.0.1:13124"
 DATABASE: "http://localhost:8001"
-
-# Azure Machine Learning Configurations
-AML_SUBSCRIPTION_ID: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxx"
-AML_RESOURCE_GROUP: "xxxxxxxx"
-AML_WORKSPACE_NAME: "xxxxxxxx"
-AML_CLUSTER_NAME: "xxxxxxxx"

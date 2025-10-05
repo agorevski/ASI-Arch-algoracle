@@ -486,7 +486,7 @@ class CandidateManager:
                 actual_b = min(b, total_count)
 
                 # Extract candidates from specified range (convert to 0-based indexing)
-                range_candidates = self.candidates[a-1:actual_b]
+                range_candidates = self.candidates[a - 1:actual_b]
                 range_size = len(range_candidates)
 
                 # If range has fewer elements than k, return all available elements
