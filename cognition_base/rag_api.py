@@ -10,10 +10,9 @@ from flask_cors import CORS
 import logging
 import traceback
 from rag_service import OpenSearchRAGService
-import argparse
 import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pipeline'))
-from config import Config
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')

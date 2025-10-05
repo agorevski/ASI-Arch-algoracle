@@ -1,9 +1,9 @@
 from agents import Agent
 from pydantic import BaseModel
-import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-from config import Config
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
+from config_loader import Config
 
 
 class MotivationCheckOutput(BaseModel):

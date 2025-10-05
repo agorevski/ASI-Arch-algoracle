@@ -1,11 +1,14 @@
 import logging
+import os
 from .prompt import Planner_input, Motivation_checker_input, Deduplication_input, CodeChecker_input
 from .model import planner, motivation_checker, deduplication, code_checker
 from agents import exceptions
 from typing import Tuple
-from config import Config
 from database.mongo_database import create_client
 from utils.verbose_logger import verbose_log_agent_run, log_file_operation, log_error_context
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')

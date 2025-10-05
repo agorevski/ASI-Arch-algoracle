@@ -7,12 +7,15 @@ Provides complete MongoDB database API functionality.
 import json
 import logging
 from dataclasses import dataclass
+import os
 from typing import Any, Dict, List, Optional
 
 import requests
 
-from config import Config
 from database.element import DataElement
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')

@@ -1,9 +1,9 @@
 import asyncio
+import os
 
 from agents import set_default_openai_api, set_default_openai_client, set_tracing_disabled
 from openai import AsyncAzureOpenAI
 
-from config import Config
 from analyse import analyse
 from database import program_sample, update
 from eval import evaluation
@@ -11,6 +11,9 @@ from evolve import evolve
 from utils.agent_logger import end_pipeline, log_error, log_info, log_step, log_warning, start_pipeline
 from utils.verbose_logger import log_pipeline_step, log_error_context
 import traceback
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from config_loader import Config
 
 
 client = AsyncAzureOpenAI(

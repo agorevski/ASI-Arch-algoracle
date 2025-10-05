@@ -8,13 +8,15 @@ from datetime import datetime
 from typing import Optional, Any
 
 from agents import exceptions
-from config import Config
 from database import DataElement
 from database.mongo_database import create_client
 from tools.tools import run_rag
 from utils.verbose_logger import verbose_log_agent_run, log_file_operation, log_error_context, log_database_operation
 from .model import analyzer
 from .prompts import Analyzer_input
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 
 def extract_original_name(timestamped_name: str) -> str:

@@ -9,8 +9,8 @@ from azure.identity import DefaultAzureCredential
 from typing import Dict
 
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from config import Config
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
@@ -24,7 +24,7 @@ def parse_arguments() -> argparse.Namespace:
                         required=True,
                         help='Model name')
     args = parser.parse_args()
-    for k,v in args.__dict__.items():
+    for k, v in args.__dict__.items():
         logging.info(f'{k}: {v}')
     return args
 

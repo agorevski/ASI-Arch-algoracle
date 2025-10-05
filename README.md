@@ -110,6 +110,10 @@ Our system demonstrates **continuous optimization capability**, consistently imp
     conda deactivate
     ```
 
+### Configuration Settings
+
+Before running, you will want to first alter the configuration settings in ```config_agents.yaml``` and ```config_pipeline.yaml```
+
 ### Environment Setup
 
 The framework relies on Docker to run the Database and Cognition Base services in the background.

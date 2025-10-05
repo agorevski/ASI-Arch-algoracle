@@ -1,0 +1,31 @@
+# Training Configuration
+TRAINING_SCRIPT: "train.py"
+
+# Experiment Results
+RESULT_FILE: "./files/analysis/loss.csv"
+RESULT_FILE_TEST: "./files/analysis/benchmark.csv"
+
+# Debug Configuration
+DEBUG_FILE: "./files/debug/training_error.txt"
+
+# Code Pool Directory (DeltaNet)
+CODE_POOL: "./pool/deltanet"
+
+# SOURCE_FILE is automatically constructed as: {CODE_POOL}/{CODE_POOL_FOLDERNAME}_base.py
+
+# Cognition Directory
+COGNITION_DIR: "cognition/linear_attention"
+
+# Retry and Debug Limits
+MAX_DEBUG_ATTEMPT: 5
+MAX_RETRY_ATTEMPTS: 20
+
+# Service URLs
+RAG: "http://127.0.0.1:13124"
+DATABASE: "http://localhost:8001"
+
+# Azure Machine Learning Configurations
+AML_SUBSCRIPTION_ID: "00000000-0000-0000-0000-000000000000"
+AML_RESOURCE_GROUP: "RG_NAME"
+AML_WORKSPACE_NAME: "WORKSPACE_NAME"
+AML_CLUSTER_NAME: "GPU_CLUSTER_NAME"

@@ -14,8 +14,8 @@ from openai import AzureOpenAI
 from PIL import Image
 from prompts import get_field_description, get_metaprompt
 from typing import Dict, List, Optional, Tuple
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pipeline'))
-from config import Config
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')

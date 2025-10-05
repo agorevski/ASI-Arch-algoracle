@@ -2,10 +2,12 @@ import logging
 import os
 from typing import Tuple
 
-from config import Config
 from utils.verbose_logger import verbose_log_agent_run, log_training_progress, log_file_operation, log_error_context
 from .model import debugger, trainer
 from .prompts import Debugger_input
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')

@@ -6,8 +6,10 @@ import subprocess
 from typing import Any, Dict
 
 from agents import function_tool
-from config import Config
 import traceback
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 
 @function_tool

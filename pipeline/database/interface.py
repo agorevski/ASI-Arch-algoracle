@@ -1,10 +1,13 @@
+import os
 from typing import Tuple
 import logging
 
-from config import Config
 from .element import DataElement
 from .mongo_database import create_client
 from utils.verbose_logger import log_database_operation, log_file_operation, log_error_context
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')

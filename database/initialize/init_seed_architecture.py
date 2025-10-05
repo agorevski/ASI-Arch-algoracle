@@ -12,8 +12,8 @@ import sys
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'pipeline'))
-from config import Config
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
