@@ -1,5 +1,5 @@
 # ASI-Arch Pipeline Requirements
-torch>=1.13.0
-numpy>=1.21.0
-datasets>=2.0.0
-transformers>=4.20.0
+torch
+numpy
+datasets
+transformers

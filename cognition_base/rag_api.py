@@ -272,7 +272,8 @@ def reinitialize_service():
     logging.info(f"[CALL] reinitialize_service - IP: {request.remote_addr}")
 
     try:
-        success = init_rag_service(data_dir=Config.COGNITION_DIR)
+        data_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings', 'architecture', Config.ARCHITECTURE, 'cognition')
+        success = init_rag_service(data_dir=data_directory)
         if success:
             duration_ms = (time.time() - start_time) * 1000
             logging.info(f"[EXIT] reinitialize_service - Status: 200, Success: True, Duration: {duration_ms:.2f}ms")
@@ -335,8 +336,9 @@ if __name__ == '__main__':
     logging.info("Starting RAG API service...")
     logging.info("Initializing RAG Service...")
 
+    data_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings', 'architecture', Config.ARCHITECTURE, 'cognition')
     # Initialize the RAG service before starting the Flask application
-    success = init_rag_service(data_dir=Config.COGNITION_DIR)
+    success = init_rag_service(data_dir=data_directory)
     if not success:
         logging.warning("❌ RAG service initialization failed, please check the logs")
         exit(1)

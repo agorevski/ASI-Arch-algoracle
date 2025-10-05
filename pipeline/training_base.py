@@ -8,6 +8,7 @@ import time
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -276,8 +277,10 @@ class TrainingPipeline(ABC):
             return results
         except Exception as e:
             logger.error(f"Training pipeline failed: {e}")
+            exception_stack = traceback.format_exc()
+            logger.error(f"Traceback: {exception_stack}")
             # Save error information
-            self._save_error_info(e)
+            self._save_error_info(e, exception_stack)
             # Return failed results
             results = TrainingResults(
                 loss_history=[],
@@ -293,11 +296,12 @@ class TrainingPipeline(ABC):
             )
             return results
 
-    def _save_error_info(self, error: Exception):
+    def _save_error_info(self, error: Exception, exception_stack: str):
         """Save error information for debugging"""
         error_file = Path(self.config.debug_dir) / "training_error.txt"
         with open(error_file, 'w') as f:
             f.write(f"Training Error: {str(error)}\n")
+            f.write(f"Stack Trace: {exception_stack}\n")
             f.write(f"Model file: {self.config.model_file}\n")
             f.write(f"Configuration: {self.config}\n")
         logger.info(f"Error information saved to {error_file}")

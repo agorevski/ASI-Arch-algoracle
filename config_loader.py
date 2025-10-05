@@ -109,7 +109,7 @@ class ConfigLoader:
 # For backward compatibility, create a default Config instance
 Config = ConfigLoader(
     agents_config_path=Path(__file__).parent.resolve() / "config_agents.yaml",
-    pipeline_config_path=Path(__file__).parent.resolve() / "config_pipeline.yaml"
+    pipeline_config_path=Path(__file__).parent.resolve() / "config_pipeline_sample.yaml"
 )
 
 
