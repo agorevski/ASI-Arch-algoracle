@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import csv
+from datetime import datetime
+import os
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 import torch
@@ -9,6 +11,10 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import logging
 import traceback
+
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from config_loader import Config
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +44,13 @@ class TrainingConfig:
     save_loss_history: bool = True
     save_benchmarks: bool = True
     output_dir: str = "files/analysis"
-    debug_dir: str = "files/debug"
 
     def __post_init__(self):
         """Post-initialization processing"""
         if self.model_name is None:
             self.model_name = Path(self.model_file).stem
+
+        self.debug_dir = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings', 'architecture', Config['ARCHITECTURE'], 'debug'))
 
         # Ensure output directories
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -298,7 +305,9 @@ class TrainingPipeline(ABC):
 
     def _save_error_info(self, error: Exception, exception_stack: str):
         """Save error information for debugging"""
-        error_file = Path(self.config.debug_dir) / "training_error.txt"
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        error_file = Path(self.config.debug_dir) / f"training_error_{timestamp}.txt"
         with open(error_file, 'w') as f:
             f.write(f"Training Error: {str(error)}\n")
             f.write(f"Stack Trace: {exception_stack}\n")

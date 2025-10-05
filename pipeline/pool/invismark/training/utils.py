@@ -2,7 +2,7 @@ import numpy as np
 import struct
 import uuid
 import torch
-from kornia import color
+from kornia.color import rgb_to_yuv
 import yaml
 import argparse
 
@@ -28,8 +28,8 @@ def compute_reconstruction_loss(
     if recon_type == 'rgb':
         rec_loss = torch.abs(inputs - reconstructions).mean(dim=[1, 2, 3])
     elif recon_type == 'yuv':
-        reconstructions_yuv = color.rgb_to_yuv((reconstructions + 1) / 2)
-        inputs_yuv = color.rgb_to_yuv((inputs + 1) / 2)
+        reconstructions_yuv = rgb_to_yuv((reconstructions + 1) / 2)
+        inputs_yuv = rgb_to_yuv((inputs + 1) / 2)
         yuv_loss = torch.mean(
             (reconstructions_yuv - inputs_yuv)**2, dim=[2, 3])
         yuv_scale = torch.tensor([1, 100, 100]).unsqueeze(

@@ -5,12 +5,18 @@ import os
 from pathlib import Path
 import random
 from typing import Dict, List, Tuple
+from datetime import datetime
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
 from training_base import TrainingPipeline, TrainingConfig
+import traceback
+
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
@@ -219,13 +225,19 @@ def main():
 
     except Exception as e:
         logger.error(f"Unexpected error in training pipeline: {e}")
-        # Save error info for debugging
-        debug_dir = Path("files/debug")
-        debug_dir.mkdir(parents=True, exist_ok=True)
-        with open(debug_dir / "training_error.txt", 'w') as f:
+        # Save error info for debugging with timestamp
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        error_file = debug_dir / f"training_error_{timestamp}.txt"
+
+        with open(error_file, 'w') as f:
             f.write(f"Training Error: {str(e)}\n")
+            f.write(f"Stack Trace: {traceback.format_exc()}\n")
             f.write(f"Model file: {args.model_file}\n")
             f.write(f"Arguments: {vars(args)}\n")
+
+        logger.info(f"Error details saved to: {error_file}")
         raise
 
 

@@ -324,56 +324,24 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(
-        description='Train InvisMark image watermarking model'
-    )
-    parser.add_argument(
-        '--model_name',
-        type=str,
-        required=True,
-        help='Model name for results'
-    )
-    parser.add_argument(
-        '--model_file',
-        type=str,
-        default='pipeline/pool/invismark/invismark_base.py',
-        help='Path to model file (for compatibility)'
-    )
-    parser.add_argument(
-        '--config_file',
-        type=str,
-        default='pipeline/pool/invismark/training/configs/config.yaml',
-        help='InvisMark config file path'
-    )
+    parser = argparse.ArgumentParser(description='Train InvisMark image watermarking model')
+    parser.add_argument('--model_name', type=str, required=True, help='Model name for results')
+    parser.add_argument('--model_file', type=str, default='pipeline/pool/invismark/invismark_base.py', help='Path to model file (for compatibility)')
+    parser.add_argument('--config_file', type=str, default='pipeline/pool/invismark/training/configs/config.yaml', help='InvisMark config file path')
     parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=8, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=2e-5, help='Learning rate')
     parser.add_argument('--warmup_epochs', type=int, default=2, help='Warmup epochs')
     parser.add_argument('--dataset_size', type=int, default=1000, help='Dataset size')
-    parser.add_argument(
-        '--device',
-        type=str,
-        default='auto',
-        help='Device (cpu/cuda/auto)'
-    )
-    parser.add_argument(
-        '--output_dir',
-        type=str,
-        default='files/analysis',
-        help='Output directory'
-    )
-    parser.add_argument(
-        '--sanity_test',
-        type=str,
-        default='False',
-        help='Run quick sanity test'
-    )
+    parser.add_argument('--device', type=str, default='auto', help='Device (cpu/cuda/auto)')
+    parser.add_argument('--output_dir', type=str, default='files/analysis', help='Output directory')
+    parser.add_argument('--sanity_test', type=str, default='False', help='Run quick sanity test')
     args = parser.parse_args()
     # Sanity test overrides
     if args.sanity_test.lower() == 'true':
         logger.info("Sanity test mode: Using minimal parameters")
         args.num_epochs = 2
-        args.batch_size = 4
+        args.batch_size = 2
         args.warmup_epochs = 1
         args.dataset_size = 10
     return args

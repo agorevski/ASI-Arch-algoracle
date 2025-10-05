@@ -1,13 +1,14 @@
 import logging
 import os
+import sys
 from typing import Tuple
+from pathlib import Path
 
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+from config_loader import Config
 from utils.verbose_logger import verbose_log_agent_run, log_training_progress, log_file_operation, log_error_context
 from .model import debugger, trainer
 from .prompts import Debugger_input
-import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-from config_loader import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname)s-%(message)s')
@@ -83,22 +84,31 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
 
                 # Read debug file content as detailed error information
                 try:
-                    # If debug file doesn't exist, create an empty file
-                    if not os.path.exists(Config.DEBUG_FILE):
-                        with open(Config.DEBUG_FILE, 'w', encoding='utf-8') as f:
-                            f.write("")
+                    # Find the most recent training_error_*.txt file in DEBUG_FOLDER
+                    debug_folder = Path(Config.DEBUG_FOLDER)
+                    debug_folder.mkdir(parents=True, exist_ok=True)
 
-                    log_file_operation("READ", Config.DEBUG_FILE)
-                    with open(Config.DEBUG_FILE, 'r', encoding='utf-8') as f:
-                        debug_content = f.read()
+                    error_files = list(debug_folder.glob("training_error_*.txt"))
 
-                    log_file_operation("READ", Config.DEBUG_FILE, size=len(debug_content))
+                    if not error_files:
+                        # No error files found, create empty placeholder
+                        previous_error = "Training failed. No error details available."
+                        log_training_progress("Error File Missing", "No training error files found")
+                    else:
+                        # Get the most recent error file by modification time
+                        latest_error_file = max(error_files, key=lambda p: p.stat().st_mtime)
 
-                    previous_error = f"Training failed. Debug info:\n{debug_content}"
+                        log_file_operation("READ", str(latest_error_file))
+                        with open(latest_error_file, 'r', encoding='utf-8') as f:
+                            debug_content = f.read()
+
+                        log_file_operation("READ", str(latest_error_file), size=len(debug_content))
+                        previous_error = f"Training failed. Debug info from {latest_error_file.name}:\n{debug_content}"
+
                 except Exception as e:
-                    log_error_context("Debug File Read", e, {"debug_file": Config.DEBUG_FILE})
+                    log_error_context("Debug File Read", e, {"debug_folder": Config.DEBUG_FOLDER})
                     previous_error = (
-                        f"Training failed. Cannot read debug file {Config.DEBUG_FILE}: {str(e)}"
+                        f"Training failed. Cannot read debug files from {Config.DEBUG_FOLDER}: {str(e)}"
                     )
 
                 log_training_progress("Error Analysis", previous_error[:200])

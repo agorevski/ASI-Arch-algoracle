@@ -6,7 +6,7 @@ RESULT_FILE: "./files/analysis/loss.csv"
 RESULT_FILE_TEST: "./files/analysis/benchmark.csv"
 
 # Debug Configuration
-DEBUG_FILE: "./files/debug/training_error.txt"
+DEBUG_FOLDER: "./files/debug"
 
 # Code Pool Directory (InvisMark)
 CODE_POOL: "./pool/invismark"
