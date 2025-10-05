@@ -10,18 +10,12 @@ from utils.agent_logger import log_agent_run
 
 def log_model_input(agent_name: str, input_data: Any) -> None:
     """Log model input data verbosely to console."""
-    print(f"🤖 MODEL INPUT: {agent_name}")
-    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"\tInput Text ({len(input_data)} chars)")
+    print(f"🤖 MODEL INPUT: {agent_name} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')} | Input Text: {len(input_data)} chars")
 
 
 def log_model_output(agent_name: str, output_data: Any, success: bool = True) -> None:
     """Log model output data verbosely to console."""
-    status = "✅ SUCCESS" if success else "❌ FAILED"
-    print(f"🤖 MODEL OUTPUT: {agent_name} - {status}")
-    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    output_bytes = len(str(output_data).encode('utf-8'))
-    print(f"\tOutput Size: {output_bytes} bytes")
+    print(f"🤖 MODEL OUTPUT: {agent_name} - {'✅ SUCCESS' if success else '❌ FAILED'} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')} | Output Size: {len(str(output_data).encode('utf-8'))} bytes")
 
     if success:
         try:
@@ -46,43 +40,35 @@ def log_model_output(agent_name: str, output_data: Any, success: bool = True) ->
 
 def log_database_operation(operation: str, details: Dict[str, Any]) -> None:
     """Log database operations verbosely."""
-    print(f"🗄️  DATABASE OPERATION: {operation}")
-    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"🗄️ DATABASE OPERATION: {operation} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
 
 
 def log_file_operation(operation: str, file_path: str, content_preview: str = None, size: int = None) -> None:
     """Log file operations verbosely."""
-    print(f"📁 FILE OPERATION: {operation}")
-    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"\t📄 File: {file_path}")
-    if size is not None:
-        print(f"\t📊 Size: {size} bytes")
-    if content_preview:
-        print("\t📋 Content Preview:")
-        if len(content_preview) > 250:
-            print(content_preview[:250])
-            print(f"... [TRUNCATED - showing first 250 of {len(content_preview)} chars] ...")
-            print(content_preview[-250:])
-        else:
-            print(content_preview)
+    print(f"📁 FILE OPERATION: {operation} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')} | 📄 File: {file_path}")
+    # if size is not None:
+    #     print(f"\t📊 Size: {size} bytes")
+    # if content_preview:
+    #     print("\t📋 Content Preview:")
+    #     if len(content_preview) > 250:
+    #         print(content_preview[:250])
+    #         print(f"... [TRUNCATED - showing first 250 of {len(content_preview)} chars] ...")
+    #         print(content_preview[-250:])
+    #     else:
+    #         print(content_preview)
 
 
 def log_training_progress(step: str, details: str, success: bool = None) -> None:
     """Log training progress verbosely."""
     status_icon = "🟢" if success else "🔴" if success is False else "🔄"
-    print(f"{status_icon} TRAINING: {step}")
-    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    if details:
-        print(f"Details: {details}")
+    print(f"{status_icon} TRAINING: {step} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    # if details:
+    #     print(f"Details: {details}")
 
 
 def log_error_context(error_source: str, error: Exception, context: Dict[str, Any] = None) -> None:
     """Log error with full context."""
-    print(f"❌ ERROR in {error_source}")
-    print(f"\t⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"\tError Type: {type(error).__name__}")
-    print(f"\tError Message: {str(error)}")
-
+    print(f"❌ ERROR in {error_source} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')} | Error Type: {type(error).__name__} | Error Message: {str(error)}")
     if context:
         print("\tContext:")
         for key, value in context.items():
@@ -98,10 +84,9 @@ def log_error_context(error_source: str, error: Exception, context: Dict[str, An
 
 def log_pipeline_step(step_name: str, details: str = "") -> None:
     """Log pipeline step with visual separator."""
-    print(f"\n{'🚀' * 3} PIPELINE STEP: {step_name} {'🚀' * 3}")
-    print(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-    if details:
-        print(f"Details: {details}")
+    print(f"\n{'🚀' * 3} PIPELINE STEP: {step_name} {'🚀' * 3} | ⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
+    # if details:
+    #     print(f"Details: {details}")
 
 
 # Wrapper for the existing log_agent_run function to add verbose console output
