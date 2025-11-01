@@ -153,9 +153,6 @@ class WatermarkTrainer(nn.Module):
         if self.cfg['WATERMARK']['ECC_MODE'] == 'ecc':
             metric['decode_errors'] = self.bchecc.get_error_count()
 
-        for key, value in metric.items():
-            logger.info(f"{key}: {value}")
-
         return metric
 
     @torch.inference_mode()
@@ -206,6 +203,10 @@ class WatermarkTrainer(nn.Module):
             # Only rank 0 logs metrics and images
             if rank == 0 and last_imgs is not None:
                 self._log_metrics(avg_metrics, epoch, f"Eval-{eval_name}")
+
+                for key, value in avg_metrics.items():
+                    logger.info(f"{key}: {value}")
+
                 self._log_images(last_imgs, last_outputs, epoch, f"Eval-{eval_name}", 1)
 
     @torch.inference_mode()
