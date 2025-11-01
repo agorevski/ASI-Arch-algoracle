@@ -110,11 +110,17 @@ class WatermarkTrainer(nn.Module):
     def _calculate_metric(self, imgs, wm_imgs, wm):
         metric = defaultdict(float)
         wm = wm.repeat(imgs.shape[0] // wm.shape[0], 1)
+        
+        # Reset decode error counter at the start of metric calculation
+        if self.cfg['WATERMARK']['ECC_MODE'] == 'ecc':
+            self.bchecc.reset_error_count()
+        
         # Image pixel values should be within [-1, 1], i.e. data_range = 2.0
         metric['psnr'] = metrics.image_psnr(imgs, wm_imgs.cpu())
         metric['ssim'] = metrics.image_ssim(wm_imgs.cpu(), imgs)
         dec_wm = self.model.module.decode(wm_imgs)
         metric['BitAcc'] = metrics.bit_accuracy(wm, dec_wm)
+
         for key in noise.supported_transforms((256, 256)):
             imgs = self.noiser(wm_imgs, [key])
             dec_wm = self.model.module.decode(imgs)
@@ -124,6 +130,11 @@ class WatermarkTrainer(nn.Module):
                 metric[f'DataBitAcc-{key}'] = metrics.bit_accuracy(
                     cor_wm[:, :-self.bchecc.bch.ecc_bytes * 8],
                     wm[:, :-self.bchecc.bch.ecc_bytes * 8].cpu())
+        
+        # Add decode error count to metrics
+        if self.cfg['WATERMARK']['ECC_MODE'] == 'ecc':
+            metric['decode_errors'] = self.bchecc.get_error_count()
+        
         return metric
 
     @torch.inference_mode()

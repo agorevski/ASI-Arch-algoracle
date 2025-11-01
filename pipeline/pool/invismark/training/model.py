@@ -274,6 +274,7 @@ class BCHECC:
         self.m = m  # total of bits n is 2^m
         self.bch = bchlib.BCH(t, m=m)
         self.data_bytes = (self.bch.n + 7) // 8 - self.bch.ecc_bytes
+        self.decode_error_count = 0
 
     def batch_encode(self, batch_size):
         secrets = []
@@ -333,6 +334,7 @@ class BCHECC:
         data, ecc = packet[:-self.bch.ecc_bytes], packet[-self.bch.ecc_bytes:]
         n_err = self.bch.decode(data, ecc)
         if n_err < 0:
+            self.decode_error_count += 1
             logger.info("n_err < 0. Cannot accurately decode the message.")
             return packet
         self.bch.correct(data, ecc)
@@ -340,6 +342,14 @@ class BCHECC:
 
     def _decode_data_bits(self, secrets: torch.Tensor, threshold: float = 0.5):
         return self.batch_decode_ecc(secrets, threshold)[:, :-self.bch.ecc_bytes * 8]
+
+    def reset_error_count(self):
+        """Reset the decode error counter."""
+        self.decode_error_count = 0
+
+    def get_error_count(self):
+        """Get the current decode error count."""
+        return self.decode_error_count
 
     def _bitstring_to_bytes(self, s):
         return bytearray(int(s, 2).to_bytes(
