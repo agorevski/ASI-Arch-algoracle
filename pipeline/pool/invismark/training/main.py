@@ -43,6 +43,8 @@ def parse_option():
     parser.add_argument("--noise_start_epoch", type=int, default=50)
     parser.add_argument("--video_start_epoch", type=int, default=80)
     parser.add_argument("--output_dir", type=str, default="./output")
+    parser.add_argument("--eval_interval", type=int, default=1,
+                        help="Evaluate every N epochs (default: 1 = every epoch)")
     return parser.parse_args()
 
 

@@ -36,6 +36,7 @@ class WatermarkTrainer(nn.Module):
         self.loss = WatermarkLoss(self.cfg)
         self.noiser = noise.Noiser(num_transforms=1)
         self.output_dir = args.output_dir
+        self.eval_interval = args.eval_interval
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.cfg['WATERMARK']['ECC_MODE'] == "ecc":
@@ -67,11 +68,18 @@ class WatermarkTrainer(nn.Module):
             else:
                 self._train_one_epoch(epoch)
 
-            # Evaluation is now distributed across all GPUs
-            if self.cfg['train_mode'] == 'video':
-                self._evaluate_video(epoch)
+            # Evaluate every N epochs or on the last epoch
+            should_evaluate = (epoch % self.eval_interval == 0) or (epoch == self.cfg['num_epochs'] - 1)
+
+            if should_evaluate:
+                logger.info(f"Evaluating at epoch {epoch} (eval_interval={self.eval_interval})...")
+                if self.cfg['train_mode'] == 'video':
+                    self._evaluate_video(epoch)
+                else:
+                    self._evaluate(epoch)
             else:
-                self._evaluate(epoch)
+                logger.info(f"Skipping evaluation at epoch {epoch} (next eval at epoch {(epoch // self.eval_interval + 1) * self.eval_interval})")
+
             self.save_ckpt(self.model.state_dict(), epoch, self.output_dir)
 
     def _train_one_epoch(self, epoch, fixed_batch=None):
@@ -234,8 +242,7 @@ class WatermarkTrainer(nn.Module):
             residuals = transforms.Resize(inputs.shape[-2:])(residuals)
             imgs = batch.view(-1, 3, *batch.shape[-2:])
             residuals = residuals.repeat(imgs.shape[0], 1, 1, 1)
-            wm_imgs = torch.clamp(imgs.to(self.device)
-                                  + residuals, min=-1.0, max=1.0)
+            wm_imgs = torch.clamp(imgs.to(self.device) + residuals, min=-1.0, max=1.0)
             batch_metric = self._calculate_metric(
                 imgs, wm_imgs, wm)
             for k, v in batch_metric.items():
@@ -264,13 +271,11 @@ class WatermarkTrainer(nn.Module):
                 avg_metrics[k] = v / max(batch_count, 1)
             return avg_metrics
 
-        world_size = dist.get_world_size()
-
         # Convert metrics to tensors for reduction
         metric_keys = sorted(local_metrics.keys())
         local_sums = torch.tensor(
-            [local_metrics[k] for k in metric_keys], 
-            dtype=torch.float32, 
+            [local_metrics[k] for k in metric_keys],
+            dtype=torch.float32,
             device=self.device
         )
         local_count = torch.tensor(batch_count, dtype=torch.float32, device=self.device)
