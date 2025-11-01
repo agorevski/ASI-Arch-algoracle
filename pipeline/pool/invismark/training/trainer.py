@@ -67,12 +67,11 @@ class WatermarkTrainer(nn.Module):
             else:
                 self._train_one_epoch(epoch)
 
-            # Only do evaluation on the main process.
-            if self.device == 0:
-                if self.cfg['train_mode'] == 'video':
-                    self._evaluate_video(epoch)
-                else:
-                    self._evaluate(epoch)
+            # Evaluation is now distributed across all GPUs
+            if self.cfg['train_mode'] == 'video':
+                self._evaluate_video(epoch)
+            else:
+                self._evaluate(epoch)
             self.save_ckpt(self.model.state_dict(), epoch, self.output_dir)
 
     def _train_one_epoch(self, epoch, fixed_batch=None):
@@ -121,10 +120,28 @@ class WatermarkTrainer(nn.Module):
         dec_wm = self.model.module.decode(wm_imgs)
         metric['BitAcc'] = metrics.bit_accuracy(wm, dec_wm)
 
-        for key in noise.supported_transforms((256, 256)):
-            imgs = self.noiser(wm_imgs, [key])
-            dec_wm = self.model.module.decode(imgs)
+        # Parallelize noise transformation processing via batching
+        transform_keys = list(noise.supported_transforms((256, 256)).keys())
+        all_transformed = []
+        
+        # Apply all noise transformations and collect results
+        for key in transform_keys:
+            transformed_imgs = self.noiser(wm_imgs, [key])
+            all_transformed.append(transformed_imgs)
+        
+        # Batch decode all transformed images at once for GPU efficiency
+        batched_imgs = torch.cat(all_transformed, dim=0)
+        batched_dec_wm = self.model.module.decode(batched_imgs)
+        
+        # Split results and calculate metrics for each transformation
+        batch_size = wm_imgs.shape[0]
+        for idx, key in enumerate(transform_keys):
+            start_idx = idx * batch_size
+            end_idx = (idx + 1) * batch_size
+            dec_wm = batched_dec_wm[start_idx:end_idx]
+            
             metric[f'BitAcc-{key}'] = metrics.bit_accuracy(wm, dec_wm)
+            
             if self.cfg['WATERMARK']['ECC_MODE'] == 'ecc':
                 cor_wm = self.bchecc.batch_decode_ecc(dec_wm).cpu()
                 metric[f'DataBitAcc-{key}'] = metrics.bit_accuracy(
@@ -140,10 +157,23 @@ class WatermarkTrainer(nn.Module):
     @torch.inference_mode()
     def _evaluate(self, epoch, num_batches=50):
         self.model.eval()
+        world_size = dist.get_world_size() if dist.is_initialized() else 1
+        rank = dist.get_rank() if dist.is_initialized() else 0
+        
         for eval_name in self.eval_dataloader_list:
-            avg_metrics = defaultdict(float)
+            local_metrics = defaultdict(float)
             dataloader = self.eval_dataloader_list[eval_name]
+            
+            # Distribute batches across GPUs
+            batch_count = 0
+            last_imgs = None
+            last_outputs = None
+            
             for i, batch in enumerate(dataloader):
+                # Skip batches not assigned to this GPU
+                if i % world_size != rank:
+                    continue
+                    
                 # Convert image data shape to be the same as video data [B, F, C, H, W]
                 data = batch[0]
                 if batch[0].ndim == 4:
@@ -155,19 +185,41 @@ class WatermarkTrainer(nn.Module):
                 batch_metric = self._calculate_metric(
                     imgs, outputs['final_outputs'], wm)
                 for k, v in batch_metric.items():
-                    avg_metrics[k] += v
+                    local_metrics[k] += v
+                batch_count += 1
+                
+                # Store last processed batch for logging
+                if rank == 0:
+                    last_imgs = imgs
+                    last_outputs = outputs['final_outputs']
+                
                 if i >= num_batches:
                     break
-            for k in avg_metrics:
-                avg_metrics[k] = avg_metrics[k] / (i + 1.0)
-            self._log_metrics(avg_metrics, epoch, f"Eval-{eval_name}")
-            self._log_images(imgs, outputs['final_outputs'], epoch, f"Eval-{eval_name}", 1)
+            
+            # Aggregate metrics across all GPUs
+            avg_metrics = self._aggregate_metrics(local_metrics, batch_count)
+            
+            # Only rank 0 logs metrics and images
+            if rank == 0 and last_imgs is not None:
+                self._log_metrics(avg_metrics, epoch, f"Eval-{eval_name}")
+                self._log_images(last_imgs, last_outputs, epoch, f"Eval-{eval_name}", 1)
 
     @torch.inference_mode()
     def _evaluate_video(self, epoch, num_batches=5):
         self.model.eval()
-        avg_metrics = defaultdict(float)
+        world_size = dist.get_world_size() if dist.is_initialized() else 1
+        rank = dist.get_rank() if dist.is_initialized() else 0
+        
+        local_metrics = defaultdict(float)
+        batch_count = 0
+        last_imgs = None
+        last_wm_imgs = None
+        
         for i in range(num_batches):
+            # Skip batches not assigned to this GPU
+            if i % world_size != rank:
+                continue
+                
             batch = next(iter(self.eval_dataloader))[0]
             inputs = torch.cat(
                 [batch[:, 0, :, :, :], batch[:, -1, :, :, :]], dim=1)
@@ -182,14 +234,55 @@ class WatermarkTrainer(nn.Module):
             batch_metric = self._calculate_metric(
                 imgs, wm_imgs, wm)
             for k, v in batch_metric.items():
-                avg_metrics[k] += v
-            if i >= num_batches:
-                break
-        for k in avg_metrics:
-            avg_metrics[k] = avg_metrics[k] / (i + 1.0)
-        self._log_metrics(avg_metrics, epoch, "Eval")
-        self._log_images(imgs, wm_imgs, epoch, "Eval")
+                local_metrics[k] += v
+            batch_count += 1
+            
+            # Store last processed batch for logging
+            if rank == 0:
+                last_imgs = imgs
+                last_wm_imgs = wm_imgs
+        
+        # Aggregate metrics across all GPUs
+        avg_metrics = self._aggregate_metrics(local_metrics, batch_count)
+        
+        # Only rank 0 logs metrics and images
+        if rank == 0 and last_imgs is not None:
+            self._log_metrics(avg_metrics, epoch, "Eval")
+            self._log_images(last_imgs, last_wm_imgs, epoch, "Eval")
 
+    def _aggregate_metrics(self, local_metrics, batch_count):
+        """Aggregate metrics across all GPUs using distributed reduction."""
+        if not dist.is_initialized():
+            # Single GPU case - just compute averages locally
+            avg_metrics = {}
+            for k, v in local_metrics.items():
+                avg_metrics[k] = v / max(batch_count, 1)
+            return avg_metrics
+        
+        world_size = dist.get_world_size()
+        
+        # Convert metrics to tensors for reduction
+        metric_keys = sorted(local_metrics.keys())
+        local_sums = torch.tensor(
+            [local_metrics[k] for k in metric_keys], 
+            dtype=torch.float32, 
+            device=self.device
+        )
+        local_count = torch.tensor(batch_count, dtype=torch.float32, device=self.device)
+        
+        # Sum metrics across all GPUs
+        global_sums = local_sums.clone()
+        global_count = local_count.clone()
+        dist.all_reduce(global_sums, op=dist.ReduceOp.SUM)
+        dist.all_reduce(global_count, op=dist.ReduceOp.SUM)
+        
+        # Compute global averages
+        avg_metrics = {}
+        for i, key in enumerate(metric_keys):
+            avg_metrics[key] = global_sums[i] / max(global_count.item(), 1)
+        
+        return avg_metrics
+    
     def _log_metrics(self, metrics, epoch, prefix='Eval'):
         for key in metrics:
             try:
@@ -199,15 +292,18 @@ class WatermarkTrainer(nn.Module):
 
     def _log_images(self, imgs, wm_imgs, epoch, prefix='Eval', num_samples=1):
         for i in range(num_samples):
-            img = transforms.ToPILImage()(
-                (imgs[i].cpu() + 1.0)/2.0)
-            mlflow.log_image(img, f"{prefix}_inp_epoch_{epoch:04d}_{i:02}.png")
-            img = transforms.ToPILImage()(
-                (wm_imgs[i].cpu() + 1.0)/2.0)
-            mlflow.log_image(img, f"{prefix}_wm_epoch_{epoch:04d}_{i:02}.png")
-            img = 20.0 * (imgs[i].cpu() - wm_imgs[i].cpu())
-            img = transforms.ToPILImage()((img + 1.0)/2.0)
-            mlflow.log_image(img, f"{prefix}_resx20_epoch_{epoch:04d}_{i:02}.png")
+            try:
+                img = transforms.ToPILImage()(
+                    (imgs[i].cpu() + 1.0)/2.0)
+                mlflow.log_image(img, f"{prefix}_inp_epoch_{epoch:04d}_{i:02}.png")
+                img = transforms.ToPILImage()(
+                    (wm_imgs[i].cpu() + 1.0)/2.0)
+                mlflow.log_image(img, f"{prefix}_wm_epoch_{epoch:04d}_{i:02}.png")
+                img = 20.0 * (imgs[i].cpu() - wm_imgs[i].cpu())
+                img = transforms.ToPILImage()((img + 1.0)/2.0)
+                mlflow.log_image(img, f"{prefix}_resx20_epoch_{epoch:04d}_{i:02}.png")
+            except Exception as e:
+                logger.error(f"Error while logging images to AML: {e}")
 
     def save_ckpt(self, model_state_dict, epoch, output_dir):
         if not dist.is_initialized() or dist.get_rank() == 0:
