@@ -107,7 +107,6 @@ class WatermarkTrainer(nn.Module):
 
     @torch.no_grad()
     def _calculate_metric(self, imgs, wm_imgs, wm):
-        logger.info("Calculating metrics for epoch ...")
         metric = defaultdict(float)
         wm = wm.repeat(imgs.shape[0] // wm.shape[0], 1)
 
@@ -157,6 +156,7 @@ class WatermarkTrainer(nn.Module):
 
     @torch.inference_mode()
     def _evaluate(self, epoch, num_batches=50):
+        logger.info(f"Starting evaluation for epoch {epoch} ...")
         self.model.eval()
         world_size = dist.get_world_size() if dist.is_initialized() else 1
         rank = dist.get_rank() if dist.is_initialized() else 0
