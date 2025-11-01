@@ -335,7 +335,7 @@ class BCHECC:
         n_err = self.bch.decode(data, ecc)
         if n_err < 0:
             self.decode_error_count += 1
-            logger.info("n_err < 0. Cannot accurately decode the message.")
+            # logger.info("n_err < 0. Cannot accurately decode the message.")
             return packet
         self.bch.correct(data, ecc)
         return bytes(data + ecc)
