@@ -42,6 +42,7 @@ def parse_option():
     parser.add_argument("--warmup_epochs", type=int, default=5)
     parser.add_argument("--noise_start_epoch", type=int, default=50)
     parser.add_argument("--video_start_epoch", type=int, default=80)
+    parser.add_argument("--output_dir", type=str, default="./output")
     return parser.parse_args()
 
 

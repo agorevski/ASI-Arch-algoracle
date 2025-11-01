@@ -31,6 +31,8 @@ class WatermarkTrainer(nn.Module):
         self.opt = torch.optim.AdamW(self.model.parameters(), lr=args.lr)
         self.loss = WatermarkLoss(self.cfg)
         self.noiser = noise.Noiser(num_transforms=1)
+        self.output_dir = args.output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
 
         if self.cfg['WATERMARK']['ECC_MODE'] == "ecc":
             self.bchecc = model.BCHECC(
@@ -47,8 +49,11 @@ class WatermarkTrainer(nn.Module):
         else:
             self.train_dataloader = ds.img_train_dataloader(os.path.join(
                 args.dataset_path, args.img_train_path), args.batch_size)
-            self.eval_dataloader = ds.img_eval_dataloader(os.path.join(
-                args.dataset_path, args.img_test_path), 1, num_workers=0)
+            self.eval_dataloader_list = {}
+            for eval_data in args.img_test_path.split(","):
+                eval_dataloader = ds.img_eval_dataloader(os.path.join(
+                    args.dataset_path, eval_data), 1, num_workers=0)
+                self.eval_dataloader_list[eval_data] = eval_dataloader
 
     def train(self):
         fixed_batch = next(iter(self.train_dataloader))
@@ -64,6 +69,7 @@ class WatermarkTrainer(nn.Module):
                     self._evaluate_video(epoch)
                 else:
                     self._evaluate(epoch)
+            self.save_ckpt(self.model.state_dict(), epoch, self.output_dir)
 
     def _train_one_epoch(self, epoch, fixed_batch=None):
         self.model.train()
@@ -118,29 +124,33 @@ class WatermarkTrainer(nn.Module):
 
     @torch.inference_mode()
     def _evaluate(self, epoch, num_batches=50):
-        avg_metrics = defaultdict(float)
-        for i, batch in enumerate(self.eval_dataloader):
-            # Convert image data shape to be the same as video data [B, F, C, H, W]
-            data = batch[0]
-            if batch[0].ndim == 4:
-                data = batch[0].unsqueeze(1).repeat(
-                    1, self.cfg['ENCODER']['NUM_FRAMES'], 1, 1, 1)
-            wm = self._generate_wm(data.shape[0])
-            outputs = self.model(data, wm)
-            imgs = data.view(-1, 3, *data.shape[-2:])
-            batch_metric = self._calculate_metric(
-                imgs, outputs['final_outputs'], wm)
-            for k, v in batch_metric.items():
-                avg_metrics[k] += v
-            if i >= num_batches:
-                break
-        for k in avg_metrics:
-            avg_metrics[k] = avg_metrics[k] / (i + 1.0)
-        self._log_metrics(avg_metrics, epoch, "Eval")
-        self._log_images(imgs, outputs['final_outputs'], epoch, "Eval", 1)
+        self.model.eval()
+        for eval_name in self.eval_dataloader_list:
+            avg_metrics = defaultdict(float)
+            dataloader = self.eval_dataloader_list[eval_name]
+            for i, batch in enumerate(dataloader):
+                # Convert image data shape to be the same as video data [B, F, C, H, W]
+                data = batch[0]
+                if batch[0].ndim == 4:
+                    data = batch[0].unsqueeze(1).repeat(
+                        1, self.cfg['ENCODER']['NUM_FRAMES'], 1, 1, 1)
+                wm = self._generate_wm(data.shape[0])
+                outputs = self.model(data, wm)
+                imgs = data.view(-1, 3, *data.shape[-2:])
+                batch_metric = self._calculate_metric(
+                    imgs, outputs['final_outputs'], wm)
+                for k, v in batch_metric.items():
+                    avg_metrics[k] += v
+                if i >= num_batches:
+                    break
+            for k in avg_metrics:
+                avg_metrics[k] = avg_metrics[k] / (i + 1.0)
+            self._log_metrics(avg_metrics, epoch, f"Eval-{eval_name}")
+            self._log_images(imgs, outputs['final_outputs'], epoch, f"Eval-{eval_name}", 1)
 
     @torch.inference_mode()
     def _evaluate_video(self, epoch, num_batches=5):
+        self.model.eval()
         avg_metrics = defaultdict(float)
         for i in range(num_batches):
             batch = next(iter(self.eval_dataloader))[0]
@@ -183,3 +193,13 @@ class WatermarkTrainer(nn.Module):
             img = 20.0 * (imgs[i].cpu() - wm_imgs[i].cpu())
             img = transforms.ToPILImage()((img + 1.0)/2.0)
             mlflow.log_image(img, f"{prefix}_resx20_epoch_{epoch:04d}_{i:02}.png")
+
+    def save_ckpt(self, model_state_dict, epoch, output_dir):
+        if not dist.is_initialized() or dist.get_rank() == 0:
+            save_state = {
+                'model': model_state_dict,
+                'epoch': epoch,
+            }
+            save_path = os.path.join(output_dir, f'ckpt_{epoch}.pth')
+            torch.save(save_state, save_path)
+            logger.info(f"{save_path} ckpt saved!")
