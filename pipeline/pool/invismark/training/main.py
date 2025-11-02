@@ -15,21 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 def parse_option():
-    parser = ArgumentParser(
-        'Image and Video watermarking', add_help=False)
-    parser.add_argument('--config_file', type=str,
-                        default='configs/config.yaml',
-                        help='Model config file path')
-    parser.add_argument('--dataset_path', type=str,
-                        help="Path to the local / AML dataset")
-    parser.add_argument("--img_train_path", type=str,
-                        default="dalle/train")
-    parser.add_argument("--img_test_path", type=str,
-                        default="dalle/test")
-    parser.add_argument("--video_train_path", type=str,
-                        default="sav/sav_train")
-    parser.add_argument("--video_test_path", type=str,
-                        default="sav/sav_test")
+    parser = ArgumentParser('Image and Video watermarking', add_help=False)
+    parser.add_argument('--config_file', type=str, default='configs/config.yaml', help='Model config file path')
+    parser.add_argument('--dataset_path', type=str, help="Path to the local / AML dataset")
+    parser.add_argument("--img_train_path", type=str, default="dalle/train")
+    parser.add_argument("--img_test_path", type=str, default="dalle/test")
+    parser.add_argument("--video_train_path", type=str, default="sav/sav_train")
+    parser.add_argument("--video_test_path", type=str, default="sav/sav_test")
     parser.add_argument("--train_mode", type=str, default="image")
     parser.add_argument("--frame_step", type=int, default=8)
     parser.add_argument("--num_epochs", type=int, default=100)
@@ -43,8 +35,7 @@ def parse_option():
     parser.add_argument("--noise_start_epoch", type=int, default=50)
     parser.add_argument("--video_start_epoch", type=int, default=80)
     parser.add_argument("--output_dir", type=str, default="./output")
-    parser.add_argument("--eval_interval", type=int, default=1,
-                        help="Evaluate every N epochs (default: 1 = every epoch)")
+    parser.add_argument("--eval_interval", type=int, default=1, help="Evaluate every N epochs (default: 1 = every epoch)")
     return parser.parse_args()
 
 

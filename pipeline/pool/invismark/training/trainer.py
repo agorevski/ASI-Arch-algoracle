@@ -1,19 +1,21 @@
-from collections import defaultdict
+import glob
+import json
 import logging
 import os
-from flask import json
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch
-from torch import nn
-import torchvision.transforms as transforms
-import mlflow
-from torch import distributed as dist
+from collections import OrderedDict, defaultdict
 
-import model
-import metrics
-import utils
-import noise
+import mlflow
+import torch
+import torchvision.transforms as transforms
+from torch import distributed as dist
+from torch import nn
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 import data.datasets as ds
+import metrics
+import model
+import noise
+import utils
 from loss import WatermarkLoss
 
 
@@ -31,8 +33,7 @@ class WatermarkTrainer(nn.Module):
         self.device = int(os.environ["LOCAL_RANK"])
         self.cfg = utils.load_configs(args)
         self.model_local = model.InvisMark(self.cfg).to(self.device)
-        self.model = DDP(self.model_local, device_ids=[
-                         self.device], find_unused_parameters=True)
+        self.model = DDP(self.model_local, device_ids=[self.device], find_unused_parameters=True)
         self.opt = torch.optim.AdamW(self.model.parameters(), lr=args.lr)
         self.loss = WatermarkLoss(self.cfg)
         self.noiser = noise.Noiser(num_transforms=1)
@@ -41,8 +42,7 @@ class WatermarkTrainer(nn.Module):
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.cfg['WATERMARK']['ECC_MODE'] == "ecc":
-            self.bchecc = model.BCHECC(
-                t=self.cfg['WATERMARK']['ECC_T'], m=self.cfg['WATERMARK']['ECC_M'])
+            self.bchecc = model.BCHECC(t=self.cfg['WATERMARK']['ECC_T'], m=self.cfg['WATERMARK']['ECC_M'])
             logger.info(f"tot_bits: {self.cfg['WATERMARK']['NUM_BITS']}, data_bytes: {self.bchecc.data_bytes}")
 
         if self.cfg['train_mode'] == 'video':
@@ -81,7 +81,8 @@ class WatermarkTrainer(nn.Module):
             else:
                 logger.info(f"Skipping evaluation at epoch {epoch} (next eval at epoch {(epoch // self.eval_interval + 1) * self.eval_interval})")
 
-            self.save_ckpt(self.model.state_dict(), epoch, self.output_dir)
+            utils.save_ckpt(self.model.state_dict(), epoch, self.output_dir)
+        utils.output_all_metrics(self.output_dir)
 
     def _train_one_epoch(self, epoch, fixed_batch=None):
         self.model.train()
@@ -94,8 +95,7 @@ class WatermarkTrainer(nn.Module):
             # Convert image data shape to be the same as video data [B, F, C, H, W]
             data = batch[0]
             if batch[0].ndim == 4:
-                data = batch[0].unsqueeze(1).repeat(
-                    1, self.cfg['ENCODER']['NUM_FRAMES'], 1, 1, 1)
+                data = batch[0].unsqueeze(1).repeat(1, self.cfg['ENCODER']['NUM_FRAMES'], 1, 1, 1)
 
             # Generate random bit array for watermarking.
             wm = self._generate_wm(data.shape[0])
@@ -217,7 +217,7 @@ class WatermarkTrainer(nn.Module):
                     logger.info(f"{key}: {value}")
 
                 self._log_images(last_imgs, last_outputs, epoch, f"Eval-{eval_name}", 1)
-                self.save_metrics(avg_metrics, epoch, output_dir)
+                utils.save_metrics(avg_metrics, epoch, output_dir)
 
     @torch.inference_mode()
     def _evaluate_video(self, epoch, num_batches=5):
@@ -316,16 +316,6 @@ class WatermarkTrainer(nn.Module):
                 mlflow.log_image(img, f"{prefix}_resx20_epoch_{epoch:04d}_{i:02}.png")
             except Exception as e:
                 logger.error(f"Error while logging images to AML: {e}")
-
-    def save_ckpt(self, model_state_dict, epoch, output_dir) -> None:
-        if not dist.is_initialized() or dist.get_rank() == 0:
-            save_state = {
-                'model': model_state_dict,
-                'epoch': epoch,
-            }
-            save_path = os.path.join(output_dir, f'ckpt_{epoch}.pth')
-            torch.save(save_state, save_path)
-            logger.info(f"{save_path} ckpt saved!")
 
     def save_metrics(self, metrics, epoch, output_dir) -> None:
         # Convert tensor values to Python floats for JSON serialization
