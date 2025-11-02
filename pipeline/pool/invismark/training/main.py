@@ -34,7 +34,7 @@ def parse_option():
     parser.add_argument("--frame_step", type=int, default=8)
     parser.add_argument("--num_epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=8)
-    parser.add_argument("--lr", type=float, default=2e-5)
+    parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--beta_min", type=float, default=1e-4)
     parser.add_argument("--beta_max", type=float, default=40.)
     parser.add_argument("--beta_start_epoch", type=int, default=10)

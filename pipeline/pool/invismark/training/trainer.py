@@ -1,6 +1,7 @@
 from collections import defaultdict
 import logging
 import os
+from flask import json
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch
 from torch import nn
@@ -76,7 +77,7 @@ class WatermarkTrainer(nn.Module):
                 if self.cfg['train_mode'] == 'video':
                     self._evaluate_video(epoch)
                 else:
-                    self._evaluate(epoch)
+                    self._evaluate(epoch, self.output_dir)
             else:
                 logger.info(f"Skipping evaluation at epoch {epoch} (next eval at epoch {(epoch // self.eval_interval + 1) * self.eval_interval})")
 
@@ -163,7 +164,7 @@ class WatermarkTrainer(nn.Module):
         return metric
 
     @torch.inference_mode()
-    def _evaluate(self, epoch, num_batches=50):
+    def _evaluate(self, epoch, output_dir, num_batches=50) -> None:
         logger.info(f"Starting evaluation for epoch {epoch} ...")
         self.model.eval()
         world_size = dist.get_world_size() if dist.is_initialized() else 1
@@ -216,6 +217,7 @@ class WatermarkTrainer(nn.Module):
                     logger.info(f"{key}: {value}")
 
                 self._log_images(last_imgs, last_outputs, epoch, f"Eval-{eval_name}", 1)
+                self.save_metrics(avg_metrics, epoch, output_dir)
 
     @torch.inference_mode()
     def _evaluate_video(self, epoch, num_batches=5):
@@ -315,7 +317,7 @@ class WatermarkTrainer(nn.Module):
             except Exception as e:
                 logger.error(f"Error while logging images to AML: {e}")
 
-    def save_ckpt(self, model_state_dict, epoch, output_dir):
+    def save_ckpt(self, model_state_dict, epoch, output_dir) -> None:
         if not dist.is_initialized() or dist.get_rank() == 0:
             save_state = {
                 'model': model_state_dict,
@@ -324,3 +326,11 @@ class WatermarkTrainer(nn.Module):
             save_path = os.path.join(output_dir, f'ckpt_{epoch}.pth')
             torch.save(save_state, save_path)
             logger.info(f"{save_path} ckpt saved!")
+
+    def save_metrics(self, metrics, epoch, output_dir) -> None:
+        # Convert tensor values to Python floats for JSON serialization
+        serializable_metrics = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in metrics.items()}
+        save_path = os.path.join(output_dir, f'metrics_{epoch}.json')
+        with open(save_path, 'w') as f:
+            json.dump(serializable_metrics, f, indent=4, sort_keys=True)
+        logger.info(f"{save_path} metrics saved!")
