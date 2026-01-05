@@ -27,14 +27,35 @@ class SimpleTextDataset(Dataset):
     """Simple text dataset for training"""
 
     def __init__(self, vocab_size: int = 1000, seq_len: int = 128, size: int = 1000):
+        """Initialize the SimpleTextDataset.
+
+        Args:
+            vocab_size: Size of the vocabulary. Defaults to 1000.
+            seq_len: Length of each sequence. Defaults to 128.
+            size: Number of samples in the dataset. Defaults to 1000.
+        """
         self.vocab_size = vocab_size
         self.seq_len = seq_len
         self.size = size
 
     def __len__(self):
+        """Return the number of samples in the dataset.
+
+        Returns:
+            The total number of samples.
+        """
         return self.size
 
     def __getitem__(self, idx):
+        """Get a single sample from the dataset.
+
+        Args:
+            idx: Index of the sample to retrieve.
+
+        Returns:
+            A tuple of (input_ids, target_ids) tensors where target_ids
+            are shifted by one position from input_ids.
+        """
         # Generate random sequence
         sequence = torch.randint(0, self.vocab_size, (self.seq_len + 1,))
         input_ids = sequence[:-1]
@@ -44,6 +65,18 @@ class SimpleTextDataset(Dataset):
 
 class DefaultTrainingPipeline(TrainingPipeline):
     def load_model(self) -> nn.Module:
+        """Load a model from the configured model file.
+
+        Dynamically imports the model module and creates the model using
+        the create_model function if available.
+
+        Returns:
+            The loaded PyTorch model.
+
+        Raises:
+            FileNotFoundError: If the model file does not exist.
+            ValueError: If no compatible model class is found in the file.
+        """
         model_file = self.config.model_file
         if not os.path.exists(model_file):
             raise FileNotFoundError(f"Model file not found: {model_file}")
@@ -63,6 +96,12 @@ class DefaultTrainingPipeline(TrainingPipeline):
         return model
 
     def create_dataset(self) -> Dataset:
+        """Create the training dataset.
+
+        Returns:
+            A SimpleTextDataset configured with vocabulary size, sequence
+            length, and dataset size from the training configuration.
+        """
         return SimpleTextDataset(
             vocab_size=self.config.vocab_size,
             seq_len=self.config.seq_len,
@@ -70,6 +109,19 @@ class DefaultTrainingPipeline(TrainingPipeline):
         )
 
     def train_model(self, model: nn.Module, train_loader: DataLoader) -> List[Tuple[int, float]]:
+        """Train the model using the provided data loader.
+
+        Performs training with AdamW optimizer, cross-entropy loss, and
+        learning rate warmup. Logs progress every 10 steps.
+
+        Args:
+            model: The PyTorch model to train.
+            train_loader: DataLoader providing training batches.
+
+        Returns:
+            A list of tuples containing (step, loss) values recorded
+            every 10 steps during training.
+        """
         model = model.to(self.device)
         model.train()
 
@@ -78,6 +130,14 @@ class DefaultTrainingPipeline(TrainingPipeline):
 
         # Learning rate scheduler with warmup
         def lr_lambda(step):
+            """Compute learning rate multiplier with linear warmup.
+
+            Args:
+                step: Current training step.
+
+            Returns:
+                Learning rate multiplier between 0 and 1.
+            """
             if step < self.config.warmup_steps:
                 return float(step) / float(max(1, self.config.warmup_steps))
             return 1.0
@@ -124,7 +184,19 @@ class DefaultTrainingPipeline(TrainingPipeline):
         return loss_history
 
     def evaluate_model(self, model: nn.Module) -> Dict[str, float]:
-        """Evaluate model on simulated benchmarks"""
+        """Evaluate model on simulated benchmarks.
+
+        Simulates benchmark results based on model complexity (parameter count)
+        with added randomness to simulate real benchmark variance.
+
+        Args:
+            model: The PyTorch model to evaluate.
+
+        Returns:
+            A dictionary mapping benchmark names to scores. Benchmarks include
+            arc_easy, arc_challenge, hellaswag, mmlu, truthfulqa, winogrande,
+            and gsm8k.
+        """
         model = model.to(self.device)
         model.eval()
 
@@ -158,7 +230,15 @@ class DefaultTrainingPipeline(TrainingPipeline):
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments"""
+    """Parse command line arguments for training configuration.
+
+    Parses arguments including model name, file path, hyperparameters,
+    and training settings. If sanity_test is enabled, overrides parameters
+    for a quick training session.
+
+    Returns:
+        Parsed command line arguments as a Namespace object.
+    """
     parser = argparse.ArgumentParser(description='Train neural architecture')
     parser.add_argument('--model_name', type=str, required=True, help='Model name for results')
     parser.add_argument('--sanity_test', type=str, default='True', help='Sanity test training')
@@ -186,11 +266,16 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main():
-    """
-    Main training function using the new TrainingPipeline interface.
+    """Main training function using the TrainingPipeline interface.
 
     This provides the same functionality as the original train.py but uses
     the standardized base class interface for better structure and extensibility.
+
+    Returns:
+        Exit code (0 for success, 1 for failure).
+
+    Raises:
+        Exception: Re-raises any unexpected error after logging details.
     """
     args = parse_arguments()
     logger.info(f"Starting training with arguments: {args}")
