@@ -13,6 +13,12 @@ class DeltaNetSeeder(SeedArchitectureInitializer):
     """Default DeltaNet seed architecture"""
 
     def get_train_result(self) -> str:
+        """Get the training results CSV data.
+
+        Returns:
+            str: CSV formatted string containing step and loss values
+                from the training run.
+        """
         return """step,loss
 0,4.234
 100,3.891
@@ -22,10 +28,22 @@ class DeltaNetSeeder(SeedArchitectureInitializer):
 500,2.654"""
 
     def get_test_result(self) -> str:
+        """Get the benchmark test results CSV data.
+
+        Returns:
+            str: CSV formatted string containing model benchmark scores
+                across multiple evaluation datasets.
+        """
         return """model,arc_easy,arc_challenge,hellaswag,mmlu,truthfulqa,winogrande,gsm8k
 DeltaNet-Base,0.6234,0.4156,0.5789,0.4523,0.3891,0.6012,0.2345"""
 
     def get_analysis(self) -> str:
+        """Get the architectural analysis text.
+
+        Returns:
+            str: Detailed analysis of the DeltaNet architecture including
+                performance metrics, strengths, and areas for improvement.
+        """
         return """Initial Analysis of DeltaNet Architecture:
 
 Architecture Overview:
@@ -57,6 +75,12 @@ Areas for Improvement:
 This baseline provides a solid foundation for evolutionary improvements in linear attention mechanisms."""
 
     def get_cognition(self) -> str:
+        """Get the research context and cognition notes.
+
+        Returns:
+            str: Research context explaining the theoretical foundations
+                and related work for the DeltaNet architecture.
+        """
         return """Relevant Research Context:
 
 The DeltaNet architecture builds upon several key innovations in linear attention:
@@ -82,6 +106,12 @@ Key Papers:
 This foundation enables systematic exploration of linear attention variants."""
 
     def get_log(self) -> str:
+        """Get the training log output.
+
+        Returns:
+            str: Timestamped log entries from the training run including
+                configuration details, step progress, and final results.
+        """
         return """Training Log for DeltaNet Base Architecture:
 
 [2024-01-13 22:11:50] Starting DeltaNet training
@@ -106,6 +136,12 @@ This foundation enables systematic exploration of linear attention variants."""
 Training completed successfully. Model shows stable convergence and competitive performance."""
 
     def get_motivation(self) -> str:
+        """Get the research motivation text.
+
+        Returns:
+            str: Explanation of the research motivation behind the DeltaNet
+                architecture, including key questions and scientific impact.
+        """
         return """Research Motivation for DeltaNet Architecture:
 
 The development of efficient attention mechanisms for long sequence modeling represents a critical challenge in modern NLP. Standard transformer attention scales quadratically with sequence length, limiting practical applications to relatively short contexts. This motivates exploration of linear attention variants.
@@ -128,21 +164,47 @@ This architecture serves as a testbed for understanding the trade-offs between c
 The goal is to push the boundaries of what's possible with efficient sequence modeling while maintaining or improving upon transformer performance."""
 
     def get_name(self) -> str:
+        """Get the unique identifier name for this architecture.
+
+        Returns:
+            str: The internal name used to identify this seed architecture.
+        """
         return "DeltaNet-Base-Seed"
 
     def get_summary(self) -> str:
+        """Get the brief summary description.
+
+        Returns:
+            str: A concise summary of the architecture's purpose and role.
+        """
         return "Baseline DeltaNet architecture with linear attention and delta rule mechanism. Serves as the foundation for ASI-Arch evolutionary experiments."
 
     def get_display_name(self) -> str:
+        """Get the human-readable display name.
+
+        Returns:
+            str: The user-friendly name shown in the UI.
+        """
         return "DeltaNet architecture"
 
     def get_source_path(self) -> str:
-        """Return the seed element source path"""
+        """Get the file path to the source code for this architecture.
+
+        Returns:
+            str: Absolute path to the DeltaNet base implementation file.
+        """
         return os.path.join(self.get_pipeline_path(), "pool", "deltanet", "deltanet_base.py")
 
 
 async def main():
-    """Main initialization function"""
+    """Run the DeltaNet seed initialization.
+
+    Creates a DeltaNetSeeder instance and executes the seeding process
+    to populate the database with the baseline DeltaNet architecture.
+
+    Returns:
+        Any: The result from the seeder's run method.
+    """
     seeder = DeltaNetSeeder()
     return await seeder.run()
 

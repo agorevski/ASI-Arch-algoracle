@@ -1,4 +1,15 @@
 def Summary_input(motivation: str, analysis: str, cognition: str) -> str:
+    """Generate an experience synthesis prompt for architectural analysis.
+
+    Args:
+        motivation: The design motivation context for the experiment.
+        analysis: The performance analysis results from the experiment.
+        cognition: Available research cognition and insights.
+
+    Returns:
+        A formatted prompt string for synthesizing experimental results
+        into a comprehensive experience summary for the Planner agent.
+    """
     return f"""# Experience Synthesis Task
 
 ## Experimental Context

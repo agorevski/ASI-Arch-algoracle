@@ -23,7 +23,17 @@ db_connection = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifecycle management"""
+    """Manage application lifecycle for FastAPI startup and shutdown.
+
+    Args:
+        app: The FastAPI application instance.
+
+    Yields:
+        None: Yields control to the application after initialization.
+
+    Raises:
+        Exception: If database connection fails during startup.
+    """
     global db_connection
     # Initialization on startup
     logging.info("MongoDB API service starting")
@@ -130,7 +140,14 @@ class StatsResponse(BaseModel):
 
 
 def get_database() -> MongoDatabase:
-    """Get database connection"""
+    """Get the current database connection instance.
+
+    Returns:
+        MongoDatabase: The active MongoDB database connection.
+
+    Raises:
+        HTTPException: If the database connection is not initialized.
+    """
     if db_connection is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -142,7 +159,11 @@ def get_database() -> MongoDatabase:
 # API route definitions
 @app.get("/", response_model=ApiResponse)
 async def root():
-    """Root path, returns API information"""
+    """Return API information and service status.
+
+    Returns:
+        ApiResponse: API version, documentation URLs, and port information.
+    """
     return ApiResponse(
         success=True,
         message="MongoDB database API service is running",
@@ -157,7 +178,14 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check"""
+    """Perform a health check on the service and database connection.
+
+    Returns:
+        dict: Health status including timestamp and database connection state.
+
+    Raises:
+        HTTPException: If the service is unhealthy or database is unreachable.
+    """
     try:
         # Test database connection
         db = get_database()
@@ -179,7 +207,17 @@ async def health_check():
 
 @app.post("/elements", response_model=ApiResponse)
 async def add_element(element: DataElementRequest):
-    """Add a data element"""
+    """Add a new data element to the database.
+
+    Args:
+        element: The data element to add containing all required fields.
+
+    Returns:
+        ApiResponse: Success status and the name of the added element.
+
+    Raises:
+        HTTPException: If the element cannot be added or a server error occurs.
+    """
     try:
         db = get_database()
 
@@ -218,7 +256,14 @@ async def add_element(element: DataElementRequest):
 
 @app.get("/elements/sample", response_model=DataElementResponse)
 async def sample_element():
-    """Randomly sample a data element"""
+    """Randomly sample a single data element from the database.
+
+    Returns:
+        DataElementResponse: A randomly selected data element.
+
+    Raises:
+        HTTPException: If no elements are found or a server error occurs.
+    """
     try:
         db = get_database()
         element = db.sample_element()
@@ -253,7 +298,17 @@ async def sample_element():
 
 @app.get("/elements/by-name/{name}", response_model=List[DataElementResponse])
 async def get_elements_by_name(name: str):
-    """Get data elements by name"""
+    """Retrieve all data elements matching the specified name.
+
+    Args:
+        name: The name to search for.
+
+    Returns:
+        List[DataElementResponse]: List of matching data elements.
+
+    Raises:
+        HTTPException: If a server error occurs during the query.
+    """
     try:
         db = get_database()
         elements = db.get_by_name(name)
@@ -286,7 +341,17 @@ async def get_elements_by_name(name: str):
 
 @app.get("/elements/with-score/by-name/{name}", response_model=List[ElementWithScore])
 async def get_elements_with_score_by_name(name: str):
-    """Get data elements and their scores by name"""
+    """Retrieve data elements and their calculated scores by name.
+
+    Args:
+        name: The name to search for.
+
+    Returns:
+        List[ElementWithScore]: List of elements with their associated scores.
+
+    Raises:
+        HTTPException: If a server error occurs during the query.
+    """
     try:
         db = get_database()
         elements = db.get_by_name(name)
@@ -323,7 +388,17 @@ async def get_elements_with_score_by_name(name: str):
 
 @app.get("/elements/with-score/by-index/{index}", response_model=ElementWithScore)
 async def get_element_with_score_by_index(index: int):
-    """Get a data element and its score by index"""
+    """Retrieve a data element and its calculated score by index.
+
+    Args:
+        index: The unique index of the element.
+
+    Returns:
+        ElementWithScore: The element with its associated score.
+
+    Raises:
+        HTTPException: If the element is not found or a server error occurs.
+    """
     try:
         db = get_database()
         element = db.get_by_index(index)
@@ -361,7 +436,17 @@ async def get_element_with_score_by_index(index: int):
 
 @app.get("/elements/{index}/score", response_model=ApiResponse)
 async def get_element_score(index: int):
-    """Get the score of a single data element (calculate and cache if it doesn't exist)"""
+    """Get the score of a data element, calculating and caching if needed.
+
+    Args:
+        index: The unique index of the element.
+
+    Returns:
+        ApiResponse: Success status with the element index and score.
+
+    Raises:
+        HTTPException: If the element is not found or a server error occurs.
+    """
     try:
         db = get_database()
         score = await db.get_or_calculate_element_score(index)
@@ -388,7 +473,17 @@ async def get_element_score(index: int):
 
 @app.get("/elements/by-index/{index}", response_model=DataElementResponse)
 async def get_element_by_index(index: int):
-    """Get a data element by index"""
+    """Retrieve a data element by its unique index.
+
+    Args:
+        index: The unique index of the element.
+
+    Returns:
+        DataElementResponse: The requested data element.
+
+    Raises:
+        HTTPException: If the element is not found or a server error occurs.
+    """
     try:
         db = get_database()
         element = db.get_by_index(index)
@@ -422,7 +517,17 @@ async def get_element_by_index(index: int):
 
 @app.delete("/elements/by-index/{index}", response_model=ApiResponse)
 async def delete_element_by_index(index: int):
-    """Delete a data element by index"""
+    """Delete a data element by its unique index.
+
+    Args:
+        index: The unique index of the element to delete.
+
+    Returns:
+        ApiResponse: Success status confirming the deletion.
+
+    Raises:
+        HTTPException: If the element is not found or cannot be deleted.
+    """
     try:
         db = get_database()
         success = db.delete_element_by_index(index)
@@ -445,7 +550,17 @@ async def delete_element_by_index(index: int):
 
 @app.delete("/elements/by-name/{name}", response_model=ApiResponse)
 async def delete_element_by_name(name: str):
-    """Delete a data element by name"""
+    """Delete a data element by its name.
+
+    Args:
+        name: The name of the element to delete.
+
+    Returns:
+        ApiResponse: Success status confirming the deletion.
+
+    Raises:
+        HTTPException: If the element is not found or cannot be deleted.
+    """
     try:
         db = get_database()
         success = db.delete_element_by_name(name)
@@ -468,7 +583,14 @@ async def delete_element_by_name(name: str):
 
 @app.delete("/elements/all", response_model=ApiResponse)
 async def delete_all_elements():
-    """Delete all data elements"""
+    """Delete all data elements from the database.
+
+    Returns:
+        ApiResponse: Success status confirming all elements were deleted.
+
+    Raises:
+        HTTPException: If the deletion fails or a server error occurs.
+    """
     try:
         db = get_database()
         success = db.delete_all_elements()
@@ -491,9 +613,16 @@ async def delete_all_elements():
 
 @app.post("/elements/clean-invalid", response_model=ApiResponse)
 async def clean_invalid_elements():
-    """
-    Clean invalid elements where the result field only contains headers and no data.
-    Child nodes of deleted nodes will be re-attached to their grandparents.
+    """Clean invalid elements with empty or header-only result fields.
+
+    Child nodes of deleted elements will be re-attached to their grandparents
+    to maintain tree structure integrity.
+
+    Returns:
+        ApiResponse: Success status with details of cleaned elements.
+
+    Raises:
+        HTTPException: If the cleaning process fails.
     """
     try:
         db = get_database()
@@ -515,7 +644,14 @@ async def clean_invalid_elements():
 
 @app.get("/stats", response_model=StatsResponse)
 async def get_stats():
-    """Get database statistics information"""
+    """Retrieve database statistics and storage information.
+
+    Returns:
+        StatsResponse: Database statistics including record counts and storage sizes.
+
+    Raises:
+        HTTPException: If statistics cannot be retrieved.
+    """
     try:
         db = get_database()
         stats = db.get_stats()
@@ -542,7 +678,14 @@ async def get_stats():
 
 @app.post("/repair", response_model=ApiResponse)
 async def repair_database():
-    """Repair the database"""
+    """Repair the database by fixing inconsistencies.
+
+    Returns:
+        ApiResponse: Success status indicating repair completion.
+
+    Raises:
+        HTTPException: If the repair operation fails.
+    """
     try:
         db = get_database()
         success = db.repair_database()
@@ -568,7 +711,17 @@ async def repair_database():
 
 @app.get("/elements/top-k/{k}", response_model=List[DataElementResponse])
 async def get_top_k_results(k: int):
-    """Get the top k results based on result"""
+    """Retrieve the top k data elements ranked by result score.
+
+    Args:
+        k: The number of top elements to retrieve (1-1000).
+
+    Returns:
+        List[DataElementResponse]: List of top k data elements.
+
+    Raises:
+        HTTPException: If k is invalid or a server error occurs.
+    """
     try:
         if k <= 0:
             raise HTTPException(
@@ -613,7 +766,19 @@ async def get_top_k_results(k: int):
 
 @app.get("/elements/sample-range/{a}/{b}/{k}", response_model=List[DataElementResponse])
 async def sample_from_range(a: int, b: int, k: int):
-    """Randomly sample k results within the range of a to b (after sorting)"""
+    """Randomly sample k elements from a specified range after sorting.
+
+    Args:
+        a: Starting position in the sorted range (1-indexed).
+        b: Ending position in the sorted range (1-indexed).
+        k: Number of elements to sample (1-1000).
+
+    Returns:
+        List[DataElementResponse]: List of randomly sampled elements.
+
+    Raises:
+        HTTPException: If parameters are invalid or a server error occurs.
+    """
     try:
         # Parameter validation
         if a <= 0 or b <= 0 or k <= 0:
@@ -674,7 +839,18 @@ async def search_similar_motivations(
     motivation: str,
     top_k: int = 5
 ):
-    """Search for the most similar data elements based on motivation text"""
+    """Search for data elements with similar motivation text using embeddings.
+
+    Args:
+        motivation: The motivation text to search for similar elements.
+        top_k: Number of similar elements to return (1-20, default 5).
+
+    Returns:
+        List[DataElementResponse]: List of most similar data elements.
+
+    Raises:
+        HTTPException: If top_k is invalid or a server error occurs.
+    """
     try:
         # Parameter validation
         if top_k <= 0 or top_k > 20:
@@ -720,7 +896,14 @@ async def search_similar_motivations(
 
 @app.post("/faiss/rebuild", response_model=ApiResponse)
 async def rebuild_faiss_index():
-    """Rebuild the FAISS index"""
+    """Rebuild the FAISS vector index from scratch.
+
+    Returns:
+        ApiResponse: Success status indicating rebuild completion.
+
+    Raises:
+        HTTPException: If the rebuild operation fails.
+    """
     try:
         db = get_database()
         success = db.rebuild_faiss_index()
@@ -747,7 +930,14 @@ async def rebuild_faiss_index():
 
 @app.get("/faiss/stats")
 async def get_faiss_stats():
-    """Get FAISS index statistics"""
+    """Retrieve FAISS vector index statistics.
+
+    Returns:
+        dict: Statistics about the FAISS index including vector count.
+
+    Raises:
+        HTTPException: If statistics cannot be retrieved.
+    """
     try:
         db = get_database()
         stats = db.get_faiss_stats()
@@ -767,7 +957,16 @@ async def get_faiss_stats():
 
 @app.post("/faiss/clean-orphans", response_model=ApiResponse)
 async def clean_faiss_orphans():
-    """Clean orphan vectors in the FAISS index"""
+    """Remove orphan vectors from the FAISS index.
+
+    Orphan vectors are those that no longer have corresponding database entries.
+
+    Returns:
+        ApiResponse: Success status with count of cleaned orphan vectors.
+
+    Raises:
+        HTTPException: If the cleaning operation fails.
+    """
     try:
         db = get_database()
         result = db.clean_faiss_orphans()
@@ -794,7 +993,14 @@ async def clean_faiss_orphans():
 
 @app.get("/candidates/stats")
 async def get_candidate_stats():
-    """Get candidate set statistics"""
+    """Retrieve statistics about the candidate set.
+
+    Returns:
+        dict: Statistics including candidate count and score distribution.
+
+    Raises:
+        HTTPException: If statistics cannot be retrieved.
+    """
     try:
         db = get_database()
         stats = db.get_candidate_stats()
@@ -814,7 +1020,14 @@ async def get_candidate_stats():
 
 @app.get("/candidates/new-data-count", response_model=ApiResponse)
 async def get_candidate_new_data_count():
-    """Get the current new data count of the candidate set"""
+    """Get the count of new data entries in the candidate set.
+
+    Returns:
+        ApiResponse: Success status with the new data count.
+
+    Raises:
+        HTTPException: If the count cannot be retrieved.
+    """
     try:
         db = get_database()
         count = db.get_candidate_new_data_count()
@@ -841,7 +1054,17 @@ async def get_candidate_new_data_count():
 
 @app.get("/candidates/top-k/{k}", response_model=List[DataElementResponse])
 async def get_candidate_top_k(k: int):
-    """Get the top-k elements from the candidate set"""
+    """Retrieve the top k elements from the candidate set by score.
+
+    Args:
+        k: The number of top candidates to retrieve (1-50).
+
+    Returns:
+        List[DataElementResponse]: List of top k candidate elements.
+
+    Raises:
+        HTTPException: If k is invalid or a server error occurs.
+    """
     try:
         if k <= 0:
             raise HTTPException(
@@ -886,7 +1109,14 @@ async def get_candidate_top_k(k: int):
 
 @app.get("/candidates/all", response_model=List[CandidateResponse])
 async def get_all_candidates_with_scores():
-    """Get all candidate set elements and their scores"""
+    """Retrieve all candidates in the set with their associated scores.
+
+    Returns:
+        List[CandidateResponse]: All candidates with their scores.
+
+    Raises:
+        HTTPException: If candidates cannot be retrieved.
+    """
     try:
         db = get_database()
         candidates = db.get_all_candidates_with_scores()
@@ -920,7 +1150,19 @@ async def get_all_candidates_with_scores():
 
 @app.get("/candidates/sample-range/{a}/{b}/{k}", response_model=List[DataElementResponse])
 async def candidate_sample_from_range(a: int, b: int, k: int):
-    """Randomly sample k elements within a specified range in the candidate set"""
+    """Randomly sample k elements from a range within the candidate set.
+
+    Args:
+        a: Starting position in the candidate set (1-indexed).
+        b: Ending position in the candidate set (1-indexed).
+        k: Number of elements to sample (1-50).
+
+    Returns:
+        List[DataElementResponse]: List of randomly sampled candidates.
+
+    Raises:
+        HTTPException: If parameters are invalid or a server error occurs.
+    """
     try:
         # Parameter validation
         if a <= 0 or b <= 0 or k <= 0:
@@ -979,7 +1221,17 @@ async def candidate_sample_from_range(a: int, b: int, k: int):
 
 @app.post("/candidates/{index}/add", response_model=ApiResponse)
 async def add_to_candidates(index: int):
-    """Manually add the specified element to the candidate set"""
+    """Manually add an element to the candidate set by its index.
+
+    Args:
+        index: The unique index of the element to add.
+
+    Returns:
+        ApiResponse: Success status confirming the addition.
+
+    Raises:
+        HTTPException: If the element is not found or cannot be added.
+    """
     try:
         db = get_database()
 
@@ -1016,7 +1268,17 @@ async def add_to_candidates(index: int):
 
 @app.delete("/candidates/by-index/{index}", response_model=ApiResponse)
 async def delete_candidate_by_index(index: int):
-    """Delete an element from the candidate set by index"""
+    """Remove an element from the candidate set by its index.
+
+    Args:
+        index: The unique index of the candidate to remove.
+
+    Returns:
+        ApiResponse: Success status confirming the removal.
+
+    Raises:
+        HTTPException: If the candidate is not found or cannot be removed.
+    """
     try:
         db = get_database()
         success = db.delete_candidate_by_index(index)
@@ -1042,7 +1304,17 @@ async def delete_candidate_by_index(index: int):
 
 @app.delete("/candidates/by-name/{name}", response_model=ApiResponse)
 async def delete_candidate_by_name(name: str):
-    """Delete elements from the candidate set by name"""
+    """Remove all elements from the candidate set matching the given name.
+
+    Args:
+        name: The name of candidates to remove.
+
+    Returns:
+        ApiResponse: Success status with count of deleted candidates.
+
+    Raises:
+        HTTPException: If a server error occurs during deletion.
+    """
     try:
         db = get_database()
         deleted_count = db.delete_candidate_by_name(name)
@@ -1063,7 +1335,17 @@ async def delete_candidate_by_name(name: str):
 
 @app.put("/candidates/{index}", response_model=ApiResponse)
 async def update_candidate(index: int):
-    """Update a specific element in the candidate set (re-fetch from the database and update the score)"""
+    """Update a candidate by re-fetching from database and recalculating score.
+
+    Args:
+        index: The unique index of the candidate to update.
+
+    Returns:
+        ApiResponse: Success status confirming the update.
+
+    Raises:
+        HTTPException: If the element is not found or update fails.
+    """
     try:
         db = get_database()
 
@@ -1100,7 +1382,14 @@ async def update_candidate(index: int):
 
 @app.post("/candidates/force-update", response_model=ApiResponse)
 async def force_update_candidates():
-    """Force update the candidate set"""
+    """Force a complete update of the entire candidate set.
+
+    Returns:
+        ApiResponse: Success status with update details.
+
+    Raises:
+        HTTPException: If the force update operation fails.
+    """
     try:
         db = get_database()
         result = await db.force_update_candidates()
@@ -1127,7 +1416,14 @@ async def force_update_candidates():
 
 @app.post("/candidates/rebuild-from-scored", response_model=ApiResponse)
 async def rebuild_candidates_from_scored():
-    """Rebuild the candidate set using all scored elements in the database (Top-50)"""
+    """Rebuild the candidate set from top 50 scored elements in database.
+
+    Returns:
+        ApiResponse: Success status with rebuild details.
+
+    Raises:
+        HTTPException: If the rebuild operation fails.
+    """
     try:
         db = get_database()
         result = await db.rebuild_candidates_from_scored_elements()
@@ -1154,7 +1450,14 @@ async def rebuild_candidates_from_scored():
 
 @app.delete("/candidates/all", response_model=ApiResponse)
 async def clear_candidates():
-    """Clear the candidate set"""
+    """Remove all elements from the candidate set.
+
+    Returns:
+        ApiResponse: Success status confirming the set was cleared.
+
+    Raises:
+        HTTPException: If the clear operation fails.
+    """
     try:
         db = get_database()
         success = db.clear_candidates()
@@ -1189,7 +1492,18 @@ async def set_parent(
     child_index: int,
     request: SetParentRequest
 ):
-    """Set the parent node of a specified element"""
+    """Set or update the parent node of a specified element.
+
+    Args:
+        child_index: The index of the child element to modify.
+        request: Request containing the new parent index (None for root).
+
+    Returns:
+        ApiResponse: Success status confirming the parent was set.
+
+    Raises:
+        HTTPException: If the operation fails or indices are invalid.
+    """
     try:
         db = get_database()
         success = db.set_parent(child_index, request.parent_index)
@@ -1216,7 +1530,17 @@ async def set_parent(
 
 @app.get("/elements/{parent_index}/children", response_model=List[DataElementResponse])
 async def get_children(parent_index: int):
-    """Get all child nodes of a specified node"""
+    """Retrieve all direct child nodes of a specified parent.
+
+    Args:
+        parent_index: The index of the parent node.
+
+    Returns:
+        List[DataElementResponse]: List of child elements.
+
+    Raises:
+        HTTPException: If a server error occurs.
+    """
     try:
         db = get_database()
         children = db.get_children(parent_index)
@@ -1249,7 +1573,14 @@ async def get_children(parent_index: int):
 
 @app.get("/elements/roots", response_model=List[DataElementResponse])
 async def get_root_nodes():
-    """Get all root nodes"""
+    """Retrieve all root nodes (elements with no parent).
+
+    Returns:
+        List[DataElementResponse]: List of all root elements.
+
+    Raises:
+        HTTPException: If a server error occurs.
+    """
     try:
         db = get_database()
         roots = db.get_root_nodes()
@@ -1282,7 +1613,17 @@ async def get_root_nodes():
 
 @app.get("/elements/{index}/path", response_model=List[DataElementResponse])
 async def get_tree_path(index: int):
-    """Get the path from the root node to a specified node"""
+    """Get the ancestry path from root to the specified node.
+
+    Args:
+        index: The index of the target node.
+
+    Returns:
+        List[DataElementResponse]: Ordered list from root to target node.
+
+    Raises:
+        HTTPException: If a server error occurs.
+    """
     try:
         db = get_database()
         path = db.get_tree_path(index)
@@ -1315,7 +1656,17 @@ async def get_tree_path(index: int):
 
 @app.get("/tree-structure")
 async def get_tree_structure(root_index: Optional[int] = None):
-    """Get the complete information of the tree structure"""
+    """Retrieve the complete tree structure information.
+
+    Args:
+        root_index: Optional root index to start from (None for all roots).
+
+    Returns:
+        dict: Hierarchical tree structure with all nodes.
+
+    Raises:
+        HTTPException: If the tree structure cannot be retrieved.
+    """
     try:
         db = get_database()
         tree_structure = db.get_tree_structure(root_index)
@@ -1334,7 +1685,14 @@ async def get_tree_structure(root_index: Optional[int] = None):
 
 
 def _to_response_model(element: Optional[DataElement]) -> Optional[DataElementResponse]:
-    """Converts a DataElement to a DataElementResponse model, handling the None case"""
+    """Convert a DataElement to a DataElementResponse model.
+
+    Args:
+        element: The DataElement to convert, or None.
+
+    Returns:
+        Optional[DataElementResponse]: The converted response model, or None if input is None.
+    """
     if element is None:
         return None
     return DataElementResponse(
@@ -1354,7 +1712,17 @@ def _to_response_model(element: Optional[DataElement]) -> Optional[DataElementRe
 
 @app.get("/elements/context/{parent_index}", response_model=ApiResponse)
 async def get_contextual_nodes(parent_index: int):
-    """Get contextual nodes based on the parent index (parent, grandparent, strongest siblings)"""
+    """Get contextual nodes including parent, grandparent, and strongest siblings.
+
+    Args:
+        parent_index: The index of the parent node to get context for.
+
+    Returns:
+        ApiResponse: Context data with parent, grandparent, and sibling nodes.
+
+    Raises:
+        HTTPException: If the parent node doesn't exist or an error occurs.
+    """
     try:
         db = get_database()
         context = db.get_contextual_nodes(parent_index)
@@ -1402,7 +1770,17 @@ class UCTScoreResponse(BaseModel):
 
 @app.get("/elements/uct-select", response_model=DataElementResponse)
 async def uct_select_node(c_param: float = 1.414):
-    """Select a node using the UCT algorithm"""
+    """Select a node using the Upper Confidence Bound for Trees algorithm.
+
+    Args:
+        c_param: Exploration parameter controlling exploration vs exploitation (0-10, default 1.414).
+
+    Returns:
+        DataElementResponse: The selected node based on UCT score.
+
+    Raises:
+        HTTPException: If no selectable nodes exist or c_param is invalid.
+    """
     try:
         # Parameter validation
         if c_param <= 0:
@@ -1450,7 +1828,17 @@ async def uct_select_node(c_param: float = 1.414):
 
 @app.get("/elements/uct-scores", response_model=List[UCTScoreResponse])
 async def get_uct_scores(c_param: float = 1.414):
-    """Get UCT score details for all nodes"""
+    """Get UCT score breakdown for all nodes in the tree.
+
+    Args:
+        c_param: Exploration parameter for UCT calculation (0-10, default 1.414).
+
+    Returns:
+        List[UCTScoreResponse]: UCT scores and components for all nodes.
+
+    Raises:
+        HTTPException: If c_param is invalid or an error occurs.
+    """
     try:
         # Parameter validation
         if c_param <= 0:

@@ -22,13 +22,35 @@ from einops import rearrange, repeat
 # Utility: RMSNorm (for stable pre-norm)
 # -----------------------------
 class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization for stable pre-normalization.
+
+    Normalizes inputs by their RMS value and applies a learned scale.
+
+    Attributes:
+        eps: Small constant for numerical stability.
+        weight: Learned per-dimension scale parameter.
+    """
+
     def __init__(self, d: int, eps: float = 1e-5):
+        """Initializes RMSNorm.
+
+        Args:
+            d: Dimension of the input features.
+            eps: Small constant added to denominator for numerical stability.
+        """
         super().__init__()
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(d))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [..., d]
+        """Applies RMS normalization to the input tensor.
+
+        Args:
+            x: Input tensor of shape [..., d] where d is the feature dimension.
+
+        Returns:
+            Normalized tensor of the same shape as input, scaled by learned weights.
+        """
         rms = x.pow(2).mean(dim=-1, keepdim=True).add(self.eps).rsqrt()
         x_norm = x * rms
         return x_norm * self.weight
@@ -38,12 +60,20 @@ class RMSNorm(nn.Module):
 # -----------------------------
 @torch.compile
 def apply_rope(x_q: torch.Tensor, x_k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Apply RoPE to queries and keys.
-    Shapes:
-      x_q, x_k: [b, t, h, d]
-      cos, sin: [1, t, 1, d_half]
-    Returns rotated (x_q, x_k)
+    """Applies Rotary Positional Embedding (RoPE) to queries and keys.
+
+    Rotates the query and key vectors using precomputed cosine and sine
+    values to encode positional information directly into the attention.
+
+    Args:
+        x_q: Query tensor of shape [b, t, h, d] where b is batch size,
+            t is sequence length, h is number of heads, d is head dimension.
+        x_k: Key tensor of shape [b, t, h, d].
+        cos: Precomputed cosine values of shape [1, t, 1, d_half].
+        sin: Precomputed sine values of shape [1, t, 1, d_half].
+
+    Returns:
+        Tuple of rotated (query, key) tensors, each of shape [b, t, h, d].
     """
     b, t, h, d = x_q.shape
     d_half = d // 2
@@ -59,9 +89,24 @@ def apply_rope(x_q: torch.Tensor, x_k: torch.Tensor, cos: torch.Tensor, sin: tor
     return x_q_out, x_k_out
 
 def build_rope_cache(t: int, d: int, device, base: float = 10000.0) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Build cos/sin caches for RoPE given sequence length t and head_dim d (d must be even).
-    Returns cos, sin with shapes [1, t, 1, d/2] for correct broadcasting with [b, t, h, d/2].
+    """Builds cosine and sine caches for Rotary Positional Embedding.
+
+    Precomputes frequency-based rotational embeddings for efficient RoPE
+    application during forward pass.
+
+    Args:
+        t: Sequence length (number of positions).
+        d: Head dimension (must be even).
+        device: Torch device to create tensors on.
+        base: Base value for computing inverse frequencies. Larger values
+            result in slower frequency decay.
+
+    Returns:
+        Tuple of (cos, sin) tensors, each of shape [1, t, 1, d/2] for
+        correct broadcasting with [b, t, h, d/2].
+
+    Raises:
+        AssertionError: If d is not even.
     """
     assert d % 2 == 0, "head_dim must be even for RoPE"
     d_half = d // 2
@@ -78,15 +123,31 @@ def build_rope_cache(t: int, d: int, device, base: float = 10000.0) -> tuple[tor
 # Gated Delta Rule with chunked scanning
 # -----------------------------
 class DeltaRuleGated(nn.Module):
+    """Chunked recurrent delta memory with per-dimension forget and write gates.
+
+    Implements a gated linear attention mechanism where memory state M ∈ R^{d×d}
+    is updated recurrently with element-wise gating for both forgetting and writing.
+
+    Update rule at time t for each head:
+        M_t = (f_row_t ⊗ f_col_t) ⊙ M_{t-1} + (k_t ⊙ gk_t) (v_t ⊙ gv_t)^T
+        o_t = q_t @ M_t
+
+    Where f_row_t, f_col_t, gk_t, gv_t ∈ R^d with values in [f_min, 1] / [0, 1].
+
+    Attributes:
+        head_dim: Dimension of each attention head.
+        chunk_size: Number of timesteps to process per chunk.
+        f_min: Minimum forget gate value to prevent complete memory erasure.
     """
-    Chunked recurrent delta memory with per-dimension forget and write gates.
-    State per (batch, head): M in R^{d x d}
-    Update at time t for a head:
-      M_t = (f_row_t ⊗ f_col_t) ⊙ M_{t-1} + (k_t ⊙ gk_t) (v_t ⊙ gv_t)^T
-      o_t = q_t @ M_t
-    Where f_row_t, f_col_t, gk_t, gv_t are in R^d with values in [f_min, 1] / [0, 1].
-    """
+
     def __init__(self, head_dim: int, chunk_size: int = 64, f_min: float = 0.8):
+        """Initializes DeltaRuleGated module.
+
+        Args:
+            head_dim: Dimension of each attention head.
+            chunk_size: Number of timesteps to process in each chunk.
+            f_min: Minimum value for forget gate to ensure memory retention.
+        """
         super().__init__()
         self.head_dim = head_dim
         self.chunk_size = chunk_size
@@ -100,14 +161,24 @@ class DeltaRuleGated(nn.Module):
                 f_gate: torch.Tensor,
                 g_gate: torch.Tensor,
                 attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
+        """Computes gated delta rule attention with chunked scanning.
+
+        Processes the input sequence in chunks, maintaining a per-head memory
+        matrix that is updated with gated writes and reads via queries.
+
         Args:
-          q,k,v: [b, t, h, d]
-          f_gate: forget gate values for rows and cols derived from one tensor [b,t,h,d]
-          g_gate: write gate values [b,t,h,d]
-          attn_mask: Optional [b, t] with 1 for valid tokens, 0 for masked
+            q: Query tensor of shape [b, t, h, d].
+            k: Key tensor of shape [b, t, h, d].
+            v: Value tensor of shape [b, t, h, d].
+            f_gate: Forget gate tensor of shape [b, t, h, d] controlling
+                memory retention per dimension.
+            g_gate: Write gate tensor of shape [b, t, h, d] controlling
+                write strength per dimension.
+            attn_mask: Optional mask tensor of shape [b, t] where 1 indicates
+                valid tokens and 0 indicates masked tokens.
+
         Returns:
-          out: [b, t, h, d]
+            Output tensor of shape [b, t, h, d] containing the attention results.
         """
         b, t, h, d = q.shape
         assert d == self.head_dim
@@ -168,7 +239,27 @@ class DeltaRuleGated(nn.Module):
 # Local window attention (chunked)
 # -----------------------------
 class LocalCausalAttention(nn.Module):
+    """Chunked local causal attention with fixed window size.
+
+    Implements efficient local attention that only attends to a fixed window
+    of previous tokens, providing O(N*W) complexity where W is window size.
+
+    Attributes:
+        head_dim: Dimension of each attention head.
+        window_size: Maximum number of previous tokens to attend to.
+        chunk_size: Number of timesteps to process per chunk.
+        dropout: Dropout layer for attention weights.
+    """
+
     def __init__(self, head_dim: int, window_size: int = 64, chunk_size: int = 64, dropout: float = 0.0):
+        """Initializes LocalCausalAttention module.
+
+        Args:
+            head_dim: Dimension of each attention head.
+            window_size: Maximum number of previous tokens to attend to.
+            chunk_size: Number of timesteps to process in each chunk.
+            dropout: Dropout probability for attention weights.
+        """
         super().__init__()
         self.head_dim = head_dim
         self.window_size = window_size
@@ -182,11 +273,21 @@ class LocalCausalAttention(nn.Module):
                 k: torch.Tensor,
                 v: torch.Tensor,
                 attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Chunked local causal attention limited to window_size tokens.
-        q,k,v: [b, t, h, d]
-        attn_mask: Optional [b, t] with 1 for valid tokens
-        Returns: [b, t, h, d]
+        """Computes chunked local causal attention limited to window_size tokens.
+
+        For each query position, attends only to the previous window_size tokens
+        (including itself), enabling efficient local attention with linear
+        complexity in window size.
+
+        Args:
+            q: Query tensor of shape [b, t, h, d].
+            k: Key tensor of shape [b, t, h, d].
+            v: Value tensor of shape [b, t, h, d].
+            attn_mask: Optional mask tensor of shape [b, t] where 1 indicates
+                valid tokens and 0 indicates masked tokens.
+
+        Returns:
+            Output tensor of shape [b, t, h, d] containing local attention results.
         """
         b, t, h, d = q.shape
         W = self.window_size
@@ -254,7 +355,43 @@ class LocalCausalAttention(nn.Module):
 # DeltaNet Layer with gating + RoPE + local attention fusion
 # -----------------------------
 class DeltaNetLayer(nn.Module):
+    """DeltaNet attention layer with gating, RoPE, and local attention fusion.
+
+    Combines gated linear delta memory with local causal attention to achieve
+    both global context through the recurrent core and sharp local selectivity.
+
+    Attributes:
+        hidden_size: Total hidden dimension of the layer.
+        num_heads: Number of attention heads.
+        head_dim: Dimension per attention head.
+        q_proj: Query projection layer.
+        k_proj: Key projection layer.
+        v_proj: Value projection layer.
+        f_proj: Forget gate projection layer.
+        g_proj: Write gate projection layer.
+        out_proj: Output projection layer.
+        in_norm: Input RMS normalization.
+        dropout: Dropout layer.
+        layer_norm: Post-attention layer normalization.
+        delta_core: Gated delta rule recurrent core.
+        local_attn: Local causal attention module.
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, dropout: float = 0.1, **kwargs):
+        """Initializes DeltaNetLayer.
+
+        Args:
+            hidden_size: Total hidden dimension (must be divisible by num_heads).
+            num_heads: Number of attention heads.
+            dropout: Dropout probability.
+            **kwargs: Additional arguments including:
+                chunk_size: Chunk size for both delta core and local attention.
+                window_size: Window size for local attention.
+
+        Raises:
+            AssertionError: If hidden_size is not divisible by num_heads or
+                if head_dim is not even (required for RoPE).
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -288,6 +425,11 @@ class DeltaNetLayer(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initializes layer parameters with sensible defaults.
+
+        Uses Xavier uniform initialization for projections and sets gate
+        biases for high memory retention and conservative writing.
+        """
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -302,6 +444,19 @@ class DeltaNetLayer(nn.Module):
         nn.init.constant_(self.g_proj.bias, -0.5)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Computes forward pass of the DeltaNet attention layer.
+
+        Applies gated delta memory and local attention in parallel, fuses
+        their outputs, and returns the result with residual connection.
+
+        Args:
+            x: Input tensor of shape [b, t, hidden_size].
+            mask: Optional attention mask of shape [b, t] where 1 indicates
+                valid tokens and 0 indicates masked tokens.
+
+        Returns:
+            Output tensor of shape [b, t, hidden_size].
+        """
         # Pre-norm for stability
         x_norm = self.in_norm(x)
 
@@ -354,7 +509,24 @@ class DeltaNetLayer(nn.Module):
 # Transformer Block
 # -----------------------------
 class DeltaNetBlock(nn.Module):
+    """Transformer block combining DeltaNet attention with feed-forward network.
+
+    Attributes:
+        attention: DeltaNetLayer for gated attention with local fusion.
+        ffn: Feed-forward network with GELU activation.
+        ffn_layer_norm: Layer normalization after FFN residual.
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1, **kwargs):
+        """Initializes DeltaNetBlock.
+
+        Args:
+            hidden_size: Hidden dimension of the block.
+            num_heads: Number of attention heads.
+            ffn_hidden_size: Hidden dimension of FFN. Defaults to 4 * hidden_size.
+            dropout: Dropout probability.
+            **kwargs: Additional arguments passed to DeltaNetLayer.
+        """
         super().__init__()
         if ffn_hidden_size is None:
             ffn_hidden_size = 4 * hidden_size
@@ -370,6 +542,15 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Computes forward pass through attention and FFN sub-layers.
+
+        Args:
+            x: Input tensor of shape [b, t, hidden_size].
+            mask: Optional attention mask of shape [b, t].
+
+        Returns:
+            Output tensor of shape [b, t, hidden_size].
+        """
         x = self.attention(x, mask)
         residual = x
         x = self.ffn(x)
@@ -380,8 +561,35 @@ class DeltaNetBlock(nn.Module):
 # DeltaNet Model (keeps class name compatibility via alias at bottom)
 # -----------------------------
 class DeltaNetModel(nn.Module):
+    """Full DeltaNet language model with token and position embeddings.
+
+    Implements a transformer-style architecture using DeltaNet blocks that
+    combine gated linear delta memory with local causal attention.
+
+    Attributes:
+        hidden_size: Hidden dimension throughout the model.
+        max_seq_len: Maximum supported sequence length.
+        token_embedding: Token embedding layer.
+        position_embedding: Learnable position embedding layer.
+        dropout: Dropout layer for embeddings.
+        layers: Stack of DeltaNetBlock layers.
+        layer_norm: Final layer normalization.
+        lm_head: Language modeling head (tied with token embeddings).
+    """
+
     def __init__(self, vocab_size: int, hidden_size: int = 512, num_layers: int = 6,
                  num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1, **kwargs):
+        """Initializes DeltaNetModel.
+
+        Args:
+            vocab_size: Size of the vocabulary.
+            hidden_size: Hidden dimension of the model.
+            num_layers: Number of DeltaNetBlock layers.
+            num_heads: Number of attention heads per layer.
+            max_seq_len: Maximum sequence length for position embeddings.
+            dropout: Dropout probability.
+            **kwargs: Additional arguments passed to DeltaNetBlock.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
@@ -401,10 +609,21 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initializes embedding parameters with normal distribution."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Computes forward pass of the language model.
+
+        Args:
+            input_ids: Token indices of shape [b, t].
+            attention_mask: Optional mask of shape [b, t] where 1 indicates
+                valid tokens and 0 indicates padding.
+
+        Returns:
+            Logits tensor of shape [b, t, vocab_size].
+        """
         b, t = input_ids.shape
         position_ids = torch.arange(t, device=input_ids.device).unsqueeze(0).expand(b, -1)
         token_embeds = self.token_embedding(input_ids)
@@ -420,6 +639,11 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Returns a human-readable summary of the model architecture.
+
+        Returns:
+            Multi-line string describing model configuration and parameters.
+        """
         return f"""
 DeltaNet Architecture Summary (Evolved):
 - Core: Gated Linear Delta Memory + Local Causal Attention Fusion
@@ -435,10 +659,23 @@ DeltaNet Architecture Summary (Evolved):
 
 # Alias to meet class name requirement
 class DeltaNet(DeltaNetModel):
+    """Alias for DeltaNetModel for backward compatibility."""
+
     pass
 
 # Factory function remains compatible
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
+    """Factory function to create a DeltaNetModel with default configuration.
+
+    Args:
+        vocab_size: Size of the vocabulary.
+        **kwargs: Override default configuration values. Supported keys:
+            hidden_size (512), num_layers (6), num_heads (8),
+            max_seq_len (2048), dropout (0.1).
+
+    Returns:
+        Configured DeltaNetModel instance.
+    """
     default_config = {
         'hidden_size': 512,
         'num_layers': 6,

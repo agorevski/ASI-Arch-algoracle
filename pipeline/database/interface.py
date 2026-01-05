@@ -17,18 +17,28 @@ db = create_client()
 
 
 async def program_sample() -> Tuple[str, int]:
-    """
-    Sample program using UCT algorithm and generate context.
+    """Sample program using UCT algorithm and generate context.
+
+    Uses the UCT (Upper Confidence bounds applied to Trees) algorithm to select
+    a parent node, retrieves reference elements, and builds a context string
+    for program generation. The selected node's program is written to the
+    configured source file.
 
     Process:
-    1. Use UCT algorithm to select a node as parent node
-    2. Get top 2 best results
-    3. Get 2-50 random results
-    4. Concatenate results into context
-    5. The modified file is the program of the node selected by UCT
+        1. Use UCT algorithm to select a node as parent node
+        2. Get top 2 best results
+        3. Get 2-50 random results
+        4. Concatenate results into context
+        5. The modified file is the program of the node selected by UCT
 
     Returns:
-        Tuple containing context string and parent index
+        Tuple[str, int]: A tuple containing:
+            - context (str): The concatenated context string from parent and
+              reference elements.
+            - parent (int): The index of the selected parent element.
+
+    Raises:
+        ValueError: If no elements are available in the database for sampling.
     """
     context = ""
 
@@ -133,14 +143,17 @@ async def program_sample() -> Tuple[str, int]:
 
 
 def update(result: DataElement) -> bool:
-    """
-    Update database with new experimental result.
+    """Update database with new experimental result.
+
+    Adds a new DataElement to the database, logging the operation details
+    and any errors that occur during the update.
 
     Args:
-        result: DataElement containing experimental results
+        result (DataElement): The experimental result to add to the database.
+            Should contain name, parent index, analysis, and program data.
 
     Returns:
-        True if update successful
+        bool: True if the update was successful, False otherwise.
     """
     log_database_operation("Database Update", {"element_name": result.name, "parent_index": result.parent, "analysis_length": len(result.analysis) if result.analysis else 0, "program_size": len(result.program) if result.program else 0})
     try:

@@ -9,7 +9,19 @@ API_BASE_URL = "http://localhost:8001"
 
 
 def add_element_via_api(element_data):
-    """Adds a data element via the API"""
+    """Adds a data element via the API.
+
+    Sends a POST request to the elements endpoint to add a new data element
+    to the database.
+
+    Args:
+        element_data: A dictionary containing the element data to add,
+            including fields like time, name, result, program, analysis,
+            cognition, log, and motivation.
+
+    Returns:
+        bool: True if the element was successfully added, False otherwise.
+    """
     url = f"{API_BASE_URL}/elements"
     headers = {"Content-Type": "application/json"}
 

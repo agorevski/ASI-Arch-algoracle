@@ -15,6 +15,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname
 
 
 async def evolve(context: str) -> Tuple[str, str]:
+    """Evolve the source code by generating and validating new motivations.
+
+    Args:
+        context: The context string used for generating new motivations.
+
+    Returns:
+        A tuple containing the name and motivation if successful,
+        or ("Failed", "evolve error") if all retry attempts fail.
+    """
     for _ in range(Config.MAX_RETRY_ATTEMPTS):
         # Read and log original source file
         with open(Config.SOURCE_FILE, 'r') as f:
@@ -36,6 +45,21 @@ async def evolve(context: str) -> Tuple[str, str]:
 
 
 async def gen(context: str) -> Tuple[str, str]:
+    """Generate a new motivation plan from the given context.
+
+    Attempts to create a non-repeated motivation by using the planner or
+    deduplication agents, restoring the original source file between attempts.
+
+    Args:
+        context: The context string used for generating the motivation plan.
+
+    Returns:
+        A tuple containing the name and motivation of the generated plan.
+
+    Raises:
+        Exception: If maximum retry attempts are reached without generating
+            a non-repeated motivation, or if an unexpected error occurs.
+    """
     # Save original file content
     with open(Config.SOURCE_FILE, 'r') as f:
         original_source = f.read()
@@ -79,7 +103,14 @@ async def gen(context: str) -> Tuple[str, str]:
 
 
 async def check_code_correctness(motivation) -> bool:
-    """Check code correctness"""
+    """Check if the generated code is correct using the code checker agent.
+
+    Args:
+        motivation: The motivation string describing the code changes to verify.
+
+    Returns:
+        True if the code passes all correctness checks, False otherwise.
+    """
     for attempt in range(Config.MAX_RETRY_ATTEMPTS):
         try:
             code_checker_result = await verbose_log_agent_run(
@@ -111,6 +142,18 @@ async def check_code_correctness(motivation) -> bool:
 
 
 async def check_repeated_motivation(motivation: str):
+    """Check if a motivation has been used in previous experiments.
+
+    Searches for similar motivations in the database and uses the motivation
+    checker agent to determine if the current motivation is a repeat.
+
+    Args:
+        motivation: The motivation string to check for repetition.
+
+    Returns:
+        The final output from the motivation checker agent containing
+        repetition status and repeated indices if applicable.
+    """
     client = create_client()
     similar_elements = client.search_similar_motivations(motivation)
     context = similar_motivation_context(similar_elements)
@@ -120,8 +163,15 @@ async def check_repeated_motivation(motivation: str):
 
 
 def similar_motivation_context(similar_elements: list) -> str:
-    """
-    Generate structured context from similar motivation elements
+    """Generate structured context from similar motivation elements.
+
+    Args:
+        similar_elements: A list of similar motivation elements from the database,
+            each containing an index and motivation attribute.
+
+    Returns:
+        A formatted string containing the structured context of previous
+        research motivations for comparison analysis.
     """
     if not similar_elements:
         return "No previous motivations found for comparison."
@@ -139,8 +189,18 @@ def similar_motivation_context(similar_elements: list) -> str:
 
 
 def get_repeated_context(repeated_index: list[int]) -> str:
-    """
-    Generate structured context from repeated motivation experiments
+    """Generate structured context from repeated motivation experiments.
+
+    Retrieves experiments by their indices and formats them into a structured
+    analysis context for generating differentiated approaches.
+
+    Args:
+        repeated_index: A list of integer indices identifying the repeated
+            experiments to retrieve from the database.
+
+    Returns:
+        A formatted string containing the structured context of repeated
+        experimental patterns with analysis guidance for innovation.
     """
     client = create_client()
     repeated_elements = [client.get_elements_by_index(index) for index in repeated_index]

@@ -13,6 +13,12 @@ class InvisMarkSeeder(SeedArchitectureInitializer):
     """InvisMark watermarking seed architecture"""
 
     def get_train_result(self) -> str:
+        """Return training results CSV data for the InvisMark model.
+
+        Returns:
+            str: CSV-formatted string containing training metrics including
+                step number, PSNR (dB), SSIM, and bit accuracy.
+        """
         return """step,psnr_db,ssim,bit_accuracy
 0,38.2,0.982,0.873
 3000,42.1,0.989,0.998
@@ -22,11 +28,24 @@ class InvisMarkSeeder(SeedArchitectureInitializer):
 15000,51.4,0.998,1.000"""
 
     def get_test_result(self) -> str:
+        """Return test results CSV data for the InvisMark model.
+
+        Returns:
+            str: CSV-formatted string containing evaluation metrics across
+                datasets including PSNR, SSIM, and accuracy under various
+                distortions (JPEG, blur, noise, rotation, crop, flip).
+        """
         return """dataset,psnr_db,ssim,clean_acc,jpeg_acc,blur_acc,noise_acc,rotation_acc,crop_acc,flip_acc
 DIV2K,51.38,0.9982,1.000,0.995,1.000,1.000,0.974,0.973,1.000
 DALLE3,51.42,0.9981,1.000,0.975,1.000,1.000,0.987,0.998,1.000"""
 
     def get_analysis(self) -> str:
+        """Return detailed analysis of the InvisMark architecture.
+
+        Returns:
+            str: Multi-line string containing architecture overview,
+                performance analysis, strengths, and areas for improvement.
+        """
         return """Initial Analysis of InvisMark Watermarking Architecture:
 
 Architecture Overview:
@@ -62,6 +81,12 @@ Areas for Improvement:
 This architecture establishes a strong foundation for high-capacity, imperceptible watermarking with robust provenance verification."""
 
     def get_cognition(self) -> str:
+        """Return research context and background for the InvisMark architecture.
+
+        Returns:
+            str: Multi-line string containing historical context, related
+                research evolution, and key papers in digital watermarking.
+        """
         return """Relevant Research Context:
 
 The InvisMark architecture builds upon the evolution of digital image watermarking:
@@ -96,6 +121,12 @@ and worst-case robust optimization to achieve high-capacity (256-bit), impercept
 and robust (>97% accuracy) watermarking for modern high-resolution AI-generated images."""
 
     def get_log(self) -> str:
+        """Return training log entries for the InvisMark model.
+
+        Returns:
+            str: Multi-line string containing timestamped training log entries
+                including configuration, phase transitions, and evaluation results.
+        """
         return """Training Log for InvisMark Watermarking System:
 
 [2024-01-13 22:11:50] Starting InvisMark training on 100k DALL·E 3 images
@@ -137,6 +168,12 @@ and robust (>97% accuracy) watermarking for modern high-resolution AI-generated 
                       (≥97% accuracy) across geometric, photometric, and compression distortions."""
 
     def get_motivation(self) -> str:
+        """Return research motivation for the InvisMark architecture.
+
+        Returns:
+            str: Multi-line string describing the research questions, approach,
+                and scientific impact of the watermarking architecture.
+        """
         return """Research Motivation for InvisMark Watermarking Architecture:
 
 The proliferation of AI-generated images (DALL·E, Stable Diffusion, Midjourney) and concerns about
@@ -179,21 +216,47 @@ The goal is to enable trustworthy AI-generated content ecosystems where provenan
 even after typical transformations, supporting transparency while minimizing user-visible degradation."""
 
     def get_name(self) -> str:
+        """Return the unique identifier name for this seed architecture.
+
+        Returns:
+            str: The architecture name used for database identification.
+        """
         return "InvisMark-Base-Seed"
 
     def get_summary(self) -> str:
+        """Return a brief summary of the InvisMark architecture.
+
+        Returns:
+            str: A concise description of the architecture's purpose and role.
+        """
         return "Baseline InvisMark watermarking architecture with resolution-scaled residual embedding. Serves as foundation for image provenance experiments."
 
     def get_display_name(self) -> str:
+        """Return the human-readable display name for this architecture.
+
+        Returns:
+            str: The display name shown in user interfaces.
+        """
         return "InvisMark watermarking architecture"
 
     def get_source_path(self) -> str:
-        """Return the seed element source path"""
+        """Return the file path to the seed element source code.
+
+        Returns:
+            str: Absolute path to the invismark_base.py source file.
+        """
         return os.path.join(self.get_pipeline_path(), "pool", "invismark", "invismark_base.py")
 
 
 async def main():
-    """Main initialization function"""
+    """Initialize and run the InvisMark seed architecture seeder.
+
+    Creates an InvisMarkSeeder instance and executes the seeding process
+    to populate the database with the baseline InvisMark architecture.
+
+    Returns:
+        The result from the seeder's run method.
+    """
     seeder = InvisMarkSeeder()
     return await seeder.run()
 

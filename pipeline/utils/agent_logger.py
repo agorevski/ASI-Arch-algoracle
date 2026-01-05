@@ -188,7 +188,11 @@ class AgentLogger:
             raise
 
     def _generate_call_id(self) -> str:
-        """Generate unique call ID."""
+        """Generate unique call ID.
+
+        Returns:
+            str: A unique call ID based on current timestamp.
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         return f"call_{timestamp}"
 
@@ -331,9 +335,12 @@ class AgentLogger:
         Serialize data to JSON-serializable format.
 
         Args:
-            data: Data to serialize
-            max_depth: Maximum recursion depth
-            current_depth: Current recursion depth
+            data: Data to serialize.
+            max_depth: Maximum recursion depth.
+            current_depth: Current recursion depth.
+
+        Returns:
+            Any: JSON-serializable representation of the data.
         """
         if current_depth > max_depth:
             return "<max_depth_reached>"
@@ -351,7 +358,16 @@ class AgentLogger:
             return self._serialize_object(data, max_depth, current_depth)
 
     def _serialize_object(self, data: Any, max_depth: int, current_depth: int) -> Any:
-        """Serialize complex objects."""
+        """Serialize complex objects.
+
+        Args:
+            data: The complex object to serialize.
+            max_depth: Maximum recursion depth.
+            current_depth: Current recursion depth.
+
+        Returns:
+            Any: JSON-serializable representation of the complex object.
+        """
         try:
             # 1. Check if it's Pydantic BaseModel
             if hasattr(data, 'model_dump'):
@@ -453,7 +469,11 @@ class AgentLogger:
             }
 
     def _write_log(self, log_data: Dict[str, Any]) -> None:
-        """Write log to main log file."""
+        """Write log to main log file.
+
+        Args:
+            log_data: Dictionary containing the log data to write.
+        """
         try:
             with open(self.main_log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(log_data, ensure_ascii=False, indent=None) + '\n')
@@ -461,7 +481,14 @@ class AgentLogger:
             print(f"Failed to write log: {e}")
 
     def _create_detailed_log(self, call_id: str, agent_name: str, start_log: Dict, end_log: Dict) -> None:
-        """Create detailed single call log file."""
+        """Create detailed single call log file.
+
+        Args:
+            call_id: Unique identifier for the call.
+            agent_name: Name of the agent.
+            start_log: Log data from when the call started.
+            end_log: Log data from when the call ended.
+        """
         try:
             detailed_log = {
                 "call_summary": {
@@ -492,7 +519,11 @@ class AgentLogger:
             print(f"Failed to create detailed log: {e}")
 
     def _write_pipeline_log(self, log_data: Dict[str, Any]) -> None:
-        """Write log to pipeline dedicated log file."""
+        """Write log to pipeline dedicated log file.
+
+        Args:
+            log_data: Dictionary containing the log data to write.
+        """
         try:
             if self.pipeline_log_file:
                 with open(self.pipeline_log_file, 'a', encoding='utf-8') as f:
@@ -501,7 +532,12 @@ class AgentLogger:
             print(f"Failed to write pipeline log: {e}")
 
     def _write_full_log(self, message: str, level: str = "INFO") -> None:
-        """Write full log to pipeline full log file."""
+        """Write full log to pipeline full log file.
+
+        Args:
+            message: The log message to write.
+            level: Log level (e.g., INFO, WARNING, ERROR, DEBUG).
+        """
         try:
             if self.pipeline_full_log_file:
                 timestamp = datetime.now().isoformat()
@@ -514,28 +550,54 @@ class AgentLogger:
             print(f"Failed to write full log: {e}")
 
     def log_info(self, message: str) -> None:
-        """Log info message."""
+        """Log info message.
+
+        Args:
+            message: The info message to log.
+        """
         self._write_full_log(message, "INFO")
 
     def log_warning(self, message: str) -> None:
-        """Log warning message."""
+        """Log warning message.
+
+        Args:
+            message: The warning message to log.
+        """
         self._write_full_log(message, "WARNING")
 
     def log_error(self, message: str) -> None:
-        """Log error message."""
+        """Log error message.
+
+        Args:
+            message: The error message to log.
+        """
         self._write_full_log(message, "ERROR")
 
     def log_debug(self, message: str) -> None:
-        """Log debug message."""
+        """Log debug message.
+
+        Args:
+            message: The debug message to log.
+        """
         self._write_full_log(message, "DEBUG")
 
     def log_step(self, step_name: str, message: str = "") -> None:
-        """Log step message."""
+        """Log step message.
+
+        Args:
+            step_name: Name of the step being logged.
+            message: Additional message to include with the step.
+        """
         full_message = f"=== {step_name} ===" + (f" {message}" if message else "")
         self._write_full_log(full_message, "STEP")
 
     def get_agent_call_stats(self) -> Dict[str, Any]:
-        """Get agent call statistics."""
+        """Get agent call statistics.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing call statistics including
+                total calls, calls by agent, calls by status, and usage stats.
+        """
         try:
             if not self.main_log_file.exists():
                 return {
@@ -621,7 +683,14 @@ _global_logger = None
 
 
 def get_logger(log_dir: str = "../logs/agent_calls") -> AgentLogger:
-    """Get global logger instance."""
+    """Get global logger instance.
+
+    Args:
+        log_dir: Directory for storing log files.
+
+    Returns:
+        AgentLogger: The global logger instance.
+    """
     global _global_logger
     if _global_logger is None:
         _global_logger = AgentLogger(log_dir)
@@ -683,31 +752,52 @@ def get_current_pipeline_id() -> Optional[str]:
 
 
 def log_info(message: str) -> None:
-    """Convenience function: Log info message."""
+    """Convenience function: Log info message.
+
+    Args:
+        message: The info message to log.
+    """
     logger = get_logger()
     logger.log_info(message)
 
 
 def log_warning(message: str) -> None:
-    """Convenience function: Log warning message."""
+    """Convenience function: Log warning message.
+
+    Args:
+        message: The warning message to log.
+    """
     logger = get_logger()
     logger.log_warning(message)
 
 
 def log_error(message: str) -> None:
-    """Convenience function: Log error message."""
+    """Convenience function: Log error message.
+
+    Args:
+        message: The error message to log.
+    """
     logger = get_logger()
     logger.log_error(message)
 
 
 def log_debug(message: str) -> None:
-    """Convenience function: Log debug message."""
+    """Convenience function: Log debug message.
+
+    Args:
+        message: The debug message to log.
+    """
     logger = get_logger()
     logger.log_debug(message)
 
 
 def log_step(step_name: str, message: str = "") -> None:
-    """Convenience function: Log step message."""
+    """Convenience function: Log step message.
+
+    Args:
+        step_name: Name of the step being logged.
+        message: Additional message to include with the step.
+    """
     logger = get_logger()
     logger.log_step(step_name, message)
 
@@ -736,7 +826,10 @@ def get_current_pipeline_usage() -> Dict[str, int]:
 
 
 def log_usage_summary() -> None:
-    """Convenience function: Print current usage summary in log."""
+    """Convenience function: Print current usage summary in log.
+
+    Logs the total session usage and current pipeline usage if available.
+    """
     logger = get_logger()
     stats = get_usage_stats()
 

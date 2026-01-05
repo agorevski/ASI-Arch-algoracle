@@ -14,14 +14,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname
 
 
 class AgentLogger:
-    """Agent call logger"""
+    """Agent call logger for tracking and storing agent execution data."""
 
     def __init__(self, log_dir: str = "../logs/agent_calls"):
-        """
-        Initializes the logger
+        """Initializes the logger.
 
         Args:
-            log_dir: Directory to store log files
+            log_dir: Directory to store log files. Defaults to "../logs/agent_calls".
         """
         self.log_dir = Path(log_dir)
         self.detailed_log_dir = self.log_dir / "detailed"
@@ -38,14 +37,13 @@ class AgentLogger:
         self.pipeline_full_log_file: Optional[Path] = None  # Full log file
 
     def start_pipeline(self, pipeline_name: str = "") -> str:
-        """
-        Starts a new pipeline process
+        """Starts a new pipeline process.
 
         Args:
-            pipeline_name: Pipeline name (optional)
+            pipeline_name: Pipeline name. Defaults to empty string.
 
         Returns:
-            pipeline_id: Generated pipeline ID
+            str: Generated pipeline ID.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         if pipeline_name:
@@ -75,12 +73,11 @@ class AgentLogger:
         return self.current_pipeline_id
 
     def end_pipeline(self, success: bool = True, summary: str = "") -> None:
-        """
-        Ends the current pipeline process
+        """Ends the current pipeline process.
 
         Args:
-            success: Whether the pipeline completed successfully
-            summary: Pipeline summary information
+            success: Whether the pipeline completed successfully. Defaults to True.
+            summary: Pipeline summary information. Defaults to empty string.
         """
         if not self.current_pipeline_id:
             logging.warning("Warning: No active pipeline to end")
@@ -114,17 +111,19 @@ class AgentLogger:
         self.pipeline_full_log_file = None
 
     async def log_agent_call(self, agent_name: str, agent, input_data: Any = None, **kwargs) -> Any:
-        """
-        Logs the complete agent call and executes the call
+        """Logs the complete agent call and executes the call.
 
         Args:
-            agent_name: Agent name
-            agent: Agent object
-            input_data: Input data
-            **kwargs: Other parameters passed to Runner.run
+            agent_name: Name of the agent being called.
+            agent: Agent object to execute.
+            input_data: Input data to pass to the agent. Defaults to None.
+            **kwargs: Other parameters passed to Runner.run.
 
         Returns:
-            The result of the agent call
+            Any: The result of the agent call.
+
+        Raises:
+            Exception: Re-raises any exception that occurs during the agent call.
         """
         call_id, timestamp, start_log = self._generate_call_id()
 
@@ -195,7 +194,11 @@ class AgentLogger:
             raise
 
     def _generate_call_id(self) -> str:
-        """Generates a unique call ID"""
+        """Generates a unique call ID.
+
+        Returns:
+            tuple: A tuple containing (call_id, timestamp, start_log_dict).
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         return f"call_{timestamp}", timestamp, {
             "call_id": f"call_{timestamp}",
@@ -208,15 +211,16 @@ class AgentLogger:
         }
 
     def _extract_usage_from_result(self, result: Any) -> Dict[str, int]:
-        """
-        Extracts usage information from the results returned by agents.Runner.
+        """Extracts usage information from the results returned by agents.Runner.
+
         Gets the usage data from the raw_responses that contain the raw API responses.
 
         Args:
-            result: The result of Runner.run
+            result: The result of Runner.run.
 
         Returns:
-            A dictionary containing usage information
+            Dict[str, int]: A dictionary containing usage information with keys
+                'input_tokens', 'output_tokens', and 'total_tokens'.
         """
         default_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
@@ -268,14 +272,15 @@ class AgentLogger:
         return default_usage
 
     def _extract_usage_from_single_response(self, response: Any) -> Dict[str, int]:
-        """
-        Extracts usage information from a single API response
+        """Extracts usage information from a single API response.
 
         Args:
-            response: Single API response object
+            response: Single API response object.
 
         Returns:
-            A dict containing usage information, or None if usage data isn't found.
+            Dict[str, int]: A dict containing usage information with keys
+                'input_tokens', 'output_tokens', and 'total_tokens',
+                or None if usage data isn't found.
         """
         if hasattr(response, 'usage'):
             usage_obj = response.usage
@@ -304,7 +309,12 @@ class AgentLogger:
         return None
 
     def _get_pipeline_usage_internal(self) -> Dict[str, int]:
-        """Gets the total usage of the current pipeline"""
+        """Gets the total usage of the current pipeline.
+
+        Returns:
+            Dict[str, int]: A dictionary containing total usage with keys
+                'input_tokens', 'output_tokens', and 'total_tokens'.
+        """
         total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
         if not self.pipeline_log_file or not self.pipeline_log_file.exists():
@@ -327,16 +337,15 @@ class AgentLogger:
             return total_usage
 
     def _serialize_data(self, data: Any, max_depth: int = 5, current_depth: int = 0) -> Any:
-        """
-        Recursively serializes data, handling common un-serializable types
+        """Recursively serializes data, handling common un-serializable types.
 
         Args:
-            data: Data to serialize
-            max_depth: Maximum recursion depth
-            current_depth: Current recursion depth
+            data: Data to serialize.
+            max_depth: Maximum recursion depth. Defaults to 5.
+            current_depth: Current recursion depth. Defaults to 0.
 
         Returns:
-            Serializable data
+            Any: Serializable data representation.
         """
         if current_depth >= max_depth:
             return f"Max depth of {max_depth} reached"
@@ -359,7 +368,16 @@ class AgentLogger:
                 return f"Unserializable object of type {type(data).__name__}"
 
     def _serialize_object(self, data: Any, max_depth: int, current_depth: int) -> Any:
-        """Serialize a general object"""
+        """Serializes a general object to a dictionary representation.
+
+        Args:
+            data: Object to serialize.
+            max_depth: Maximum recursion depth.
+            current_depth: Current recursion depth.
+
+        Returns:
+            Any: Dictionary representation of the object.
+        """
         # Special handling for Agent objects, avoiding circular references and excessive detail
         if 'Agent' in str(type(data)):  # Simple type check
             agent_info = {"agent_name": getattr(data, 'name', 'UnknownAgent')}
@@ -383,7 +401,11 @@ class AgentLogger:
         return obj_dict
 
     def _write_log(self, log_data: Dict[str, Any]) -> None:
-        """Writes the log to the main log file"""
+        """Writes the log to the main log file.
+
+        Args:
+            log_data: Dictionary containing log data to write.
+        """
         try:
             with open(self.main_log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(log_data, ensure_ascii=False, indent=None) + '\n')
@@ -391,7 +413,14 @@ class AgentLogger:
             logging.warning(f"Failed to write log: {e}")
 
     def _create_detailed_log(self, call_id: str, agent_name: str, start_log: Dict, end_log: Dict) -> None:
-        """Creates a detailed log file for a single call"""
+        """Creates a detailed log file for a single call.
+
+        Args:
+            call_id: Unique identifier for the call.
+            agent_name: Name of the agent.
+            start_log: Dictionary containing the start log data.
+            end_log: Dictionary containing the end log data.
+        """
         try:
             log_content = {
                 "call_id": call_id,
@@ -413,7 +442,11 @@ class AgentLogger:
             logging.error(f"Failed to create detailed log: {e}")
 
     def _write_pipeline_log(self, log_data: Dict[str, Any]) -> None:
-        """Writes the log to the pipeline-specific log file"""
+        """Writes the log to the pipeline-specific log file.
+
+        Args:
+            log_data: Dictionary containing log data to write.
+        """
         try:
             if self.pipeline_log_file:
                 with open(self.pipeline_log_file, 'a', encoding='utf-8') as f:
@@ -422,7 +455,12 @@ class AgentLogger:
             logging.error(f"Failed to write pipeline log: {e}")
 
     def _write_full_log(self, message: str, level: str = "INFO") -> None:
-        """Writes the full log to the pipeline's full log file"""
+        """Writes the full log to the pipeline's full log file.
+
+        Args:
+            message: Log message to write.
+            level: Log level string. Defaults to "INFO".
+        """
         try:
             if self.pipeline_full_log_file:
                 timestamp = datetime.now().isoformat()
@@ -435,28 +473,54 @@ class AgentLogger:
             logging.error(f"Failed to write full log: {e}")
 
     def log_info(self, message: str) -> None:
-        """Logs an info message"""
+        """Logs an info message.
+
+        Args:
+            message: Message to log.
+        """
         self._write_full_log(message, "INFO")
 
     def log_warning(self, message: str) -> None:
-        """Logs a warning message"""
+        """Logs a warning message.
+
+        Args:
+            message: Message to log.
+        """
         self._write_full_log(message, "WARNING")
 
     def log_error(self, message: str) -> None:
-        """Logs an error message"""
+        """Logs an error message.
+
+        Args:
+            message: Message to log.
+        """
         self._write_full_log(message, "ERROR")
 
     def log_debug(self, message: str) -> None:
-        """Logs a debug message"""
+        """Logs a debug message.
+
+        Args:
+            message: Message to log.
+        """
         self._write_full_log(message, "DEBUG")
 
     def log_step(self, step_name: str, message: str = "") -> None:
-        """Logs a step message"""
+        """Logs a step message.
+
+        Args:
+            step_name: Name of the step being logged.
+            message: Additional message. Defaults to empty string.
+        """
         full_message = f"=== {step_name} ===" + (f" {message}" if message else "")
         self._write_full_log(full_message, "STEP")
 
     def get_agent_call_stats(self) -> Dict[str, Any]:
-        """Gets agent call statistics"""
+        """Gets agent call statistics.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing statistics including total_calls,
+                by_agent counts, by_status counts, and usage information.
+        """
         try:
             if not self.main_log_file.exists():
                 return {
@@ -540,7 +604,14 @@ _global_logger = None
 
 
 def get_logger(log_dir: str = "../logs/agent_calls") -> AgentLogger:
-    """Gets the global logger instance"""
+    """Gets the global logger instance.
+
+    Args:
+        log_dir: Directory to store log files. Defaults to "../logs/agent_calls".
+
+    Returns:
+        AgentLogger: The global AgentLogger instance.
+    """
     global _global_logger
     if _global_logger is None:
         _global_logger = AgentLogger(log_dir)
@@ -548,95 +619,132 @@ def get_logger(log_dir: str = "../logs/agent_calls") -> AgentLogger:
 
 
 async def log_agent_run(agent_name: str, agent, input_data: Any = None, **kwargs) -> Any:
-    """
-    Convenience function: log and execute an agent call
+    """Logs and executes an agent call.
+
+    Convenience function that wraps AgentLogger.log_agent_call.
 
     Args:
-        agent_name: Agent name
-        agent: Agent object
-        input_data: Input data
-        **kwargs: Other parameters
+        agent_name: Name of the agent being called.
+        agent: Agent object to execute.
+        input_data: Input data to pass to the agent. Defaults to None.
+        **kwargs: Other parameters passed to Runner.run.
 
     Returns:
-        Agent call result
+        Any: The result of the agent call.
     """
     logger = get_logger()
     return await logger.log_agent_call(agent_name, agent, input_data, **kwargs)
 
 
 def start_pipeline(pipeline_name: str = "") -> str:
-    """
-    Convenience function: Starts a new pipeline
+    """Starts a new pipeline.
+
+    Convenience function that wraps AgentLogger.start_pipeline.
 
     Args:
-        pipeline_name: Pipeline name (optional)
+        pipeline_name: Pipeline name. Defaults to empty string.
 
     Returns:
-        pipeline_id: Generated pipeline ID
+        str: Generated pipeline ID.
     """
     logger = get_logger()
     return logger.start_pipeline(pipeline_name)
 
 
 def end_pipeline(success: bool = True, summary: str = "") -> None:
-    """
-    Convenience function: Ends the current pipeline
+    """Ends the current pipeline.
+
+    Convenience function that wraps AgentLogger.end_pipeline.
 
     Args:
-        success: If the pipeline succeeded
-        summary: Pipeline summary information
+        success: Whether the pipeline succeeded. Defaults to True.
+        summary: Pipeline summary information. Defaults to empty string.
     """
     logger = get_logger()
     logger.end_pipeline(success, summary)
 
 
 def get_current_pipeline_id() -> Optional[str]:
-    """
-    Convenience function: Gets the current pipeline ID
+    """Gets the current pipeline ID.
+
+    Convenience function that accesses the current_pipeline_id from the global logger.
 
     Returns:
-        The current pipeline ID, or None if there's no active pipeline
+        Optional[str]: The current pipeline ID, or None if there's no active pipeline.
     """
     logger = get_logger()
     return logger.current_pipeline_id
 
 
 def log_info(message: str) -> None:
-    """Convenience function: Logs info messages"""
+    """Logs an info message.
+
+    Convenience function that wraps AgentLogger.log_info.
+
+    Args:
+        message: Message to log.
+    """
     logger = get_logger()
     logger.log_info(message)
 
 
 def log_warning(message: str) -> None:
-    """Convenience function: Logs warning messages"""
+    """Logs a warning message.
+
+    Convenience function that wraps AgentLogger.log_warning.
+
+    Args:
+        message: Message to log.
+    """
     logger = get_logger()
     logger.log_warning(message)
 
 
 def log_error(message: str) -> None:
-    """Convenience function: Logs error messages"""
+    """Logs an error message.
+
+    Convenience function that wraps AgentLogger.log_error.
+
+    Args:
+        message: Message to log.
+    """
     logger = get_logger()
     logger.log_error(message)
 
 
 def log_debug(message: str) -> None:
-    """Convenience function: Logs debug messages"""
+    """Logs a debug message.
+
+    Convenience function that wraps AgentLogger.log_debug.
+
+    Args:
+        message: Message to log.
+    """
     logger = get_logger()
     logger.log_debug(message)
 
 
 def log_step(step_name: str, message: str = "") -> None:
-    """Convenience function: Logs a step"""
+    """Logs a step message.
+
+    Convenience function that wraps AgentLogger.log_step.
+
+    Args:
+        step_name: Name of the step being logged.
+        message: Additional message. Defaults to empty string.
+    """
     logger = get_logger()
     logger.log_step(step_name, message)
 
 
 def get_usage_stats() -> Dict[str, Any]:
-    """
-    Convenience function: Gets usage statistics.
+    """Gets usage statistics.
+
+    Convenience function that extracts usage data from agent call stats.
 
     Returns:
-        Dictionary containing usage statistics.
+        Dict[str, Any]: Dictionary containing usage statistics including
+            total_input_tokens, total_output_tokens, total_tokens, and by_agent breakdown.
     """
     logger = get_logger()
     stats = logger.get_agent_call_stats()
@@ -644,18 +752,23 @@ def get_usage_stats() -> Dict[str, Any]:
 
 
 def get_current_pipeline_usage() -> Dict[str, int]:
-    """
-    Convenience function: Gets the usage statistics from current pipeline.
+    """Gets the usage statistics from current pipeline.
+
+    Convenience function that wraps AgentLogger._get_pipeline_usage_internal.
 
     Returns:
-        The usage statistics for the current pipeline.
+        Dict[str, int]: Dictionary containing usage statistics with keys
+            'input_tokens', 'output_tokens', and 'total_tokens'.
     """
     logger = get_logger()
     return logger._get_pipeline_usage_internal()
 
 
 def log_usage_summary() -> None:
-    """Convenience function: Prints a summary of current usage in the logs"""
+    """Prints a summary of current usage in the logs.
+
+    Logs total session usage and current pipeline usage if available.
+    """
     logger = get_logger()
     stats = get_usage_stats()
 
@@ -674,7 +787,7 @@ def log_usage_summary() -> None:
 
 @dataclass
 class DataElement:
-    """Data element class"""
+    """Data element class for storing agent execution results and metadata."""
     time: str
     name: str
     result: Dict[str, Any]
@@ -690,12 +803,23 @@ class DataElement:
     score: Optional[float] = None  # Calculated score, can cache
 
     def to_dict(self) -> Dict[str, Any]:
-        """Converts to dictionary"""
+        """Converts the DataElement to a dictionary.
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the DataElement.
+        """
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'DataElement':
-        """Creates an instance from a dictionary"""
+        """Creates a DataElement instance from a dictionary.
+
+        Args:
+            data: Dictionary containing DataElement fields.
+
+        Returns:
+            DataElement: A new DataElement instance populated from the dictionary.
+        """
         return cls(
             time=data.get('time', ''),
             name=data.get('name', ''),
@@ -717,14 +841,13 @@ logger = logging.getLogger(__name__)
 
 
 def _evaluate_loss(result: dict) -> float:
-    """
-    Evaluates training loss
+    """Evaluates training loss.
 
     Args:
-        result: Result dictionary, containing the 'train' field
+        result: Result dictionary containing the 'train' field with CSV data.
 
     Returns:
-        float: The loss value of the last step.
+        float: The loss value of the last step, or 0.0 if not available.
     """
     if not result or not result.get('train'):
         logger.warning("training loss result is an empty string")
@@ -760,15 +883,16 @@ def _evaluate_loss(result: dict) -> float:
 
 
 def _evaluate_result(result: dict) -> float:
-    """
-    Evaluates the result string (CSV format), returning the average score of all numerical values.
-    Skips the header, calculates the average of the first data row.
+    """Evaluates the result string in CSV format.
+
+    Returns the average score of all numerical values. Skips the header
+    and calculates the average of the first data row.
 
     Args:
-        result: Result dictionary, containing the 'test' field
+        result: Result dictionary containing the 'test' field with CSV data.
 
     Returns:
-        float: Mean of the test results.
+        float: Mean of the test results, or 0.0 if not available.
     """
     if not result or not result.get('test'):
         logger.warning("benchmark evaluation result is an empty string")
@@ -807,8 +931,13 @@ def _evaluate_result(result: dict) -> float:
 
 
 def _has_data_rows(csv_string: str) -> bool:
-    """
-    Checks if the CSV string contains at least one data row (beyond the header).
+    """Checks if the CSV string contains at least one data row beyond the header.
+
+    Args:
+        csv_string: CSV formatted string to check.
+
+    Returns:
+        bool: True if the CSV contains at least one data row, False otherwise.
     """
     if not isinstance(csv_string, str) or not csv_string.strip():
         return False

@@ -24,8 +24,17 @@ from einops import rearrange
 
 
 def _softplus_inv(y: float) -> float:
-    # Inverse softplus for scalar initialization: find x such that softplus(x) = y
-    # softplus^{-1}(y) = log(exp(y) - 1)
+    """Compute the inverse of the softplus function.
+
+    Finds x such that softplus(x) = y, using the formula:
+    softplus^{-1}(y) = log(exp(y) - 1).
+
+    Args:
+        y: The target softplus output value.
+
+    Returns:
+        The input value x that satisfies softplus(x) = y.
+    """
     return math.log(math.expm1(y))
 
 
@@ -74,15 +83,30 @@ class DeltaNet(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize projection weights with Xavier uniform and biases to zero.
+
+        Note:
+            gate_w is initialized to zero and gate_b is set positive during
+            __init__. decay_theta is also pre-initialized.
+        """
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
         nn.init.xavier_uniform_(self.out_proj.weight)
         nn.init.zeros_(self.out_proj.bias)
-        # gate_w initialized at zero, gate_b positive; decay_theta already set
 
     def _phi(self, x: torch.Tensor) -> torch.Tensor:
-        # Positive kernel feature map for normalized kernel attention
+        """Apply positive kernel feature map for normalized kernel attention.
+
+        Uses elu(x) + 1 to ensure strictly positive outputs, which is required
+        for the normalized kernel attention mechanism.
+
+        Args:
+            x: Input tensor of any shape.
+
+        Returns:
+            Tensor of same shape with positive values.
+        """
         return F.elu(x) + 1.0
 
     if hasattr(torch, "compile"):
@@ -90,19 +114,25 @@ class DeltaNet(nn.Module):
         def _scan_chunk(self, phi_q_c: torch.Tensor, phi_k_c: torch.Tensor, v_c: torch.Tensor,
                         mask_c: Optional[torch.Tensor], S: torch.Tensor, s: torch.Tensor,
                         lambda_h: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-            """
-            Causal scan over a chunk (sequential within chunk) updating running state.
+            """Perform causal scan over a chunk, updating running state sequentially.
+
+            Processes each timestep within the chunk causally, applying content-adaptive
+            gating and per-head exponential decay to maintain normalized linear attention.
+
             Args:
-                phi_q_c, phi_k_c: [b, c, h, d]
-                v_c: [b, c, h, d]
-                mask_c: [b, c] or None
-                S: [b, h, d, d] running numerator state (will be updated and returned)
-                s: [b, h, d] running denominator state (will be updated and returned)
-                lambda_h: [h] per-head decay factor in (0,1)
+                phi_q_c: Query features after kernel map, shape [batch, chunk_size, heads, dim].
+                phi_k_c: Key features after kernel map, shape [batch, chunk_size, heads, dim].
+                v_c: Value vectors, shape [batch, chunk_size, heads, dim].
+                mask_c: Optional attention mask, shape [batch, chunk_size].
+                S: Running numerator state, shape [batch, heads, dim, dim].
+                s: Running denominator state, shape [batch, heads, dim].
+                lambda_h: Per-head decay factors in (0,1), shape [heads].
+
             Returns:
-                y_c: [b, c, h, d]
-                S: updated running state [b, h, d, d]
-                s: updated running state [b, h, d]
+                Tuple containing:
+                    - y_c: Output for this chunk, shape [batch, chunk_size, heads, dim].
+                    - S: Updated numerator state, shape [batch, heads, dim, dim].
+                    - s: Updated denominator state, shape [batch, heads, dim].
             """
             b, c, h, d = phi_q_c.shape
             # Expand decay for broadcasting
@@ -155,6 +185,27 @@ class DeltaNet(nn.Module):
         def _scan_chunk(self, phi_q_c: torch.Tensor, phi_k_c: torch.Tensor, v_c: torch.Tensor,
                         mask_c: Optional[torch.Tensor], S: torch.Tensor, s: torch.Tensor,
                         lambda_h: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            """Perform causal scan over a chunk, updating running state sequentially.
+
+            Fallback implementation without torch.compile. Processes each timestep
+            within the chunk causally, applying content-adaptive gating and per-head
+            exponential decay to maintain normalized linear attention.
+
+            Args:
+                phi_q_c: Query features after kernel map, shape [batch, chunk_size, heads, dim].
+                phi_k_c: Key features after kernel map, shape [batch, chunk_size, heads, dim].
+                v_c: Value vectors, shape [batch, chunk_size, heads, dim].
+                mask_c: Optional attention mask, shape [batch, chunk_size].
+                S: Running numerator state, shape [batch, heads, dim, dim].
+                s: Running denominator state, shape [batch, heads, dim].
+                lambda_h: Per-head decay factors in (0,1), shape [heads].
+
+            Returns:
+                Tuple containing:
+                    - y_c: Output for this chunk, shape [batch, chunk_size, heads, dim].
+                    - S: Updated numerator state, shape [batch, heads, dim, dim].
+                    - s: Updated denominator state, shape [batch, heads, dim].
+            """
             b, c, h, d = phi_q_c.shape
             lam = lambda_h.view(1, h, 1, 1)
             lam_s = lambda_h.view(1, h, 1)
@@ -188,12 +239,18 @@ class DeltaNet(nn.Module):
             return torch.cat(outputs, dim=1), S, s
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
+        """Compute normalized linear attention with delta-rule updates.
+
+        Applies chunkwise causal processing with content-adaptive gating and
+        per-head exponential decay for efficient O(N) complexity attention.
+
         Args:
-            x: [batch, seq_len, hidden_size]
-            mask: Optional [batch, seq_len] with 1 for valid tokens and 0 for padding
+            x: Input tensor, shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask with 1 for valid tokens and 0 for padding,
+                shape [batch, seq_len].
+
         Returns:
-            output: [batch, seq_len, hidden_size]
+            Output tensor, shape [batch, seq_len, hidden_size].
         """
         b, s, _ = x.shape
         residual = x
@@ -266,6 +323,16 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Apply attention and feed-forward network with residual connections.
+
+        Args:
+            x: Input tensor, shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask with 1 for valid tokens and 0 for padding,
+                shape [batch, seq_len].
+
+        Returns:
+            Output tensor, shape [batch, seq_len, hidden_size].
+        """
         x = self.attention(x, mask)
         residual = x
         x = self.ffn(x)
@@ -294,10 +361,24 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize token and position embeddings with normal distribution (std=0.02)."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Compute forward pass through the full DeltaNet model.
+
+        Applies token and position embeddings, processes through all transformer
+        layers, and produces logits for language modeling.
+
+        Args:
+            input_ids: Token indices, shape [batch, seq_len].
+            attention_mask: Optional mask with 1 for valid tokens and 0 for padding,
+                shape [batch, seq_len].
+
+        Returns:
+            Logits tensor, shape [batch, seq_len, vocab_size].
+        """
         b, s = input_ids.shape
         position_ids = torch.arange(s, device=input_ids.device).unsqueeze(0).expand(b, -1)
         token_embeds = self.token_embedding(input_ids)
@@ -311,6 +392,11 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Generate a human-readable summary of the model architecture.
+
+        Returns:
+            Multi-line string describing model configuration and parameter count.
+        """
         return f"""
 DeltaNet Architecture Summary (Enhanced):
 - Model Type: Normalized Linear Attention Transformer (Delta-Rule + Gated Decay)
@@ -326,6 +412,23 @@ DeltaNet Architecture Summary (Enhanced):
 # Factory function for creating the model
 
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
+    """Create a DeltaNetModel with default or custom configuration.
+
+    Factory function that instantiates a DeltaNetModel with sensible defaults
+    for language modeling tasks.
+
+    Args:
+        vocab_size: Size of the token vocabulary. Defaults to 50257.
+        **kwargs: Override any default configuration parameter:
+            - hidden_size: Model dimension (default: 512).
+            - num_layers: Number of transformer layers (default: 6).
+            - num_heads: Number of attention heads (default: 8).
+            - max_seq_len: Maximum sequence length (default: 2048).
+            - dropout: Dropout probability (default: 0.1).
+
+    Returns:
+        Configured DeltaNetModel instance.
+    """
     default_config = {
         'hidden_size': 512,
         'num_layers': 6,

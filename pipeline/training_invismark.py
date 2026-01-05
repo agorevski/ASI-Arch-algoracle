@@ -29,6 +29,15 @@ import importlib.util
 
 
 def import_module_from_path(module_name, file_path):
+    """Import a Python module from a file path.
+
+    Args:
+        module_name: The name to assign to the imported module.
+        file_path: The file path to the Python module to import.
+
+    Returns:
+        The imported module object.
+    """
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -77,21 +86,43 @@ class InvisMarkTrainingConfig(TrainingConfig):
 
 
 class SyntheticImageDataset(Dataset):
-    """Synthetic image dataset for testing InvisMark training"""
+    """Synthetic image dataset for testing InvisMark training."""
+
     def __init__(
         self,
         size: int = 1000,
         image_size: Tuple[int, int] = (256, 256),
         num_channels: int = 3
     ):
+        """Initialize the synthetic image dataset.
+
+        Args:
+            size: Number of synthetic images in the dataset.
+            image_size: Tuple of (height, width) for generated images.
+            num_channels: Number of color channels (e.g., 3 for RGB).
+        """
         self.size = size
         self.image_size = image_size
         self.num_channels = num_channels
 
     def __len__(self):
+        """Return the total number of images in the dataset.
+
+        Returns:
+            The size of the dataset.
+        """
         return self.size
 
     def __getitem__(self, idx):
+        """Get a synthetic image by index.
+
+        Args:
+            idx: Index of the image to retrieve.
+
+        Returns:
+            A tuple containing a single random image tensor with values
+            clamped to [-1, 1].
+        """
         # Generate random image in range [-1, 1]
         image = torch.randn(self.num_channels, *self.image_size)
         image = torch.clamp(image, -1.0, 1.0)
@@ -99,8 +130,15 @@ class SyntheticImageDataset(Dataset):
 
 
 class InvisMarkTrainingPipeline(TrainingPipeline):
-    """Training pipeline for InvisMark image watermarking"""
+    """Training pipeline for InvisMark image watermarking."""
+
     def __init__(self, config: InvisMarkTrainingConfig):
+        """Initialize the InvisMark training pipeline.
+
+        Args:
+            config: Configuration object containing training parameters
+                and InvisMark-specific settings.
+        """
         super().__init__(config)
         self.config: InvisMarkTrainingConfig = config
         # Load InvisMark configuration
@@ -111,7 +149,15 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
         self.bchecc = None
 
     def _load_invismark_config(self) -> dict:
-        """Load and merge InvisMark YAML configuration"""
+        """Load and merge InvisMark YAML configuration.
+
+        Loads the YAML configuration file specified in the training config,
+        merges it with training parameters, and returns the combined config.
+
+        Returns:
+            A dictionary containing the merged InvisMark configuration
+            with training parameters included.
+        """
         config_path = Path(self.config.config_file)
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -154,7 +200,17 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
         return yaml_config
 
     def load_model(self) -> nn.Module:
-        """Load InvisMark model"""
+        """Load and initialize the InvisMark model.
+
+        Creates the InvisMark model instance and initializes associated
+        components including the loss function, noiser, and ECC encoder.
+
+        Returns:
+            The initialized InvisMark neural network model.
+
+        Raises:
+            Exception: If model loading or initialization fails.
+        """
         try:
             model = invismark_model.InvisMark(self.invismark_config)
             logger.info("Created InvisMark model")
@@ -177,7 +233,12 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
             raise
 
     def create_dataset(self) -> Dataset:
-        """Create synthetic image dataset"""
+        """Create a synthetic image dataset for training.
+
+        Returns:
+            A SyntheticImageDataset instance configured with the
+            image size and channel count from the configuration.
+        """
         return SyntheticImageDataset(
             size=self.config.dataset_size,
             image_size=tuple(self.invismark_config['IMAGE']['SIZE']),
@@ -185,7 +246,19 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
         )
 
     def _generate_watermark(self, batch_size: int) -> torch.Tensor:
-        """Generate random watermark bits"""
+        """Generate random watermark bits for a batch.
+
+        Args:
+            batch_size: Number of watermarks to generate.
+
+        Returns:
+            A tensor of shape (batch_size, num_bits) containing
+            the generated watermark bits.
+
+        Raises:
+            ValueError: If BCH ECC is not initialized when using 'ecc' mode,
+                or if an unsupported ECC mode is specified.
+        """
         if self.invismark_config['WATERMARK']['ECC_MODE'] == 'uuid':
             bits, _ = invismark_utils.uuid_to_bits(batch_size)
         elif self.invismark_config['WATERMARK']['ECC_MODE'] == 'ecc':
@@ -199,7 +272,19 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
         return bits[:, :self.invismark_config['WATERMARK']['NUM_BITS']].to(self.device)
 
     def train_model(self, model: nn.Module, train_loader: DataLoader) -> List[Tuple[int, float]]:
-        """Train the InvisMark model"""
+        """Train the InvisMark model.
+
+        Performs the full training loop including warmup epochs with fixed
+        batches, watermark generation, and loss optimization.
+
+        Args:
+            model: The InvisMark model to train.
+            train_loader: DataLoader providing training image batches.
+
+        Returns:
+            A list of (step, loss) tuples representing the training
+            loss history at logged intervals.
+        """
         model = model.to(self.device)
         model.train()
         # Setup optimizer
@@ -248,7 +333,20 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
         return loss_history
 
     def evaluate_model(self, model: nn.Module) -> Dict[str, float]:
-        """Evaluate InvisMark model"""
+        """Evaluate the InvisMark model on quality and robustness metrics.
+
+        Runs inference on a synthetic evaluation dataset and calculates
+        image quality metrics (PSNR, SSIM) and watermark extraction accuracy
+        including robustness to various transformations.
+
+        Args:
+            model: The trained InvisMark model to evaluate.
+
+        Returns:
+            A dictionary mapping metric names to their averaged values,
+            including 'psnr', 'ssim', 'bit_accuracy', and transform-specific
+            bit accuracy scores.
+        """
         model = model.to(self.device)
         model.eval()
         # Create evaluation dataset
@@ -293,7 +391,18 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
         return dict(avg_metrics)
 
     def _calculate_metrics(self, orig_imgs: torch.Tensor, wm_imgs: torch.Tensor, watermark: torch.Tensor, model: nn.Module) -> Dict[str, float]:
-        """Calculate image quality and watermark extraction metrics"""
+        """Calculate image quality and watermark extraction metrics.
+
+        Args:
+            orig_imgs: Original images tensor of shape (B, C, H, W).
+            wm_imgs: Watermarked images tensor of shape (B, C, H, W).
+            watermark: Ground truth watermark bits of shape (B, num_bits).
+            model: The InvisMark model used for watermark decoding.
+
+        Returns:
+            A dictionary containing 'psnr', 'ssim', 'bit_accuracy', and
+            transform-specific bit accuracy metrics for robustness testing.
+        """
         metrics = {}
         # Repeat watermark if needed
         if orig_imgs.shape[0] != watermark.shape[0]:
@@ -323,7 +432,16 @@ class InvisMarkTrainingPipeline(TrainingPipeline):
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments"""
+    """Parse command line arguments for InvisMark training.
+
+    Parses training configuration from command line arguments including
+    model settings, training hyperparameters, and output options.
+
+    Returns:
+        An argparse.Namespace object containing the parsed arguments.
+        If sanity_test is enabled, parameters are overridden with
+        minimal values for quick testing.
+    """
     parser = argparse.ArgumentParser(description='Train InvisMark image watermarking model')
     parser.add_argument('--model_name', type=str, required=True, help='Model name for results')
     parser.add_argument('--model_file', type=str, default='pipeline/pool/invismark/invismark_base.py', help='Path to model file (for compatibility)')
@@ -348,7 +466,17 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main():
-    """Main training function"""
+    """Main entry point for InvisMark training.
+
+    Parses command line arguments, creates the training configuration
+    and pipeline, executes training, and returns the exit status.
+
+    Returns:
+        0 if training completed successfully, 1 if training failed.
+
+    Raises:
+        Exception: Re-raises any unexpected errors after logging.
+    """
     args = parse_arguments()
     logger.info(f"Starting InvisMark training with arguments: {args}")
     # Create configuration

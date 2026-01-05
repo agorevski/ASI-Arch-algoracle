@@ -159,7 +159,14 @@ class OpenSearchRAGService:
         self._create_index()
 
     def _create_index(self):
-        """Creates the OpenSearch index"""
+        """Creates the OpenSearch index with KNN vector support.
+
+        Sets up the index with appropriate mappings for text fields and
+        KNN vector embeddings. Deletes any existing index with the same name.
+
+        Raises:
+            Exception: If index creation fails.
+        """
         # Use the actual dimension of the embedding client
         embedding_dim = self.embedding_client.embedding_dim
 
@@ -238,12 +245,27 @@ class OpenSearchRAGService:
         logger.info(f"Created index: {self.index_name} (embedding dimension: {embedding_dim})")
 
     def _generate_document_id(self, paper_key: str, design_insight: str) -> str:
-        """Generates the document ID"""
+        """Generates a unique document ID using MD5 hash.
+
+        Args:
+            paper_key: The paper key (filename without extension).
+            design_insight: The design insight text.
+
+        Returns:
+            A hexadecimal MD5 hash string serving as the document ID.
+        """
         content = f"{paper_key}_{design_insight}"
         return hashlib.md5(content.encode('utf-8')).hexdigest()
 
     def _extract_filename(self, filepath: str) -> str:
-        """Extract file name (without extension) from file path"""
+        """Extracts the file name without extension from a file path.
+
+        Args:
+            filepath: The full path to the file.
+
+        Returns:
+            The file name stem (without directory path or extension).
+        """
         return Path(filepath).stem
 
     def load_cognition_data(self, data_dir: str) -> List[RAGDocument]:
@@ -436,7 +458,18 @@ class OpenSearchRAGService:
             return self._knn_search_fallback(query, query_embedding, k, similarity_threshold)
 
     def _knn_search_fallback(self, query: str, query_embedding: List[float], k: int, similarity_threshold: float) -> List[Dict[str, Any]]:
-        """KNN Search Fallback Method"""
+        """Performs KNN search as a fallback when script_score search fails.
+
+        Args:
+            query: The original query text (used for logging).
+            query_embedding: The embedding vector for the query.
+            k: The number of results to return.
+            similarity_threshold: The minimum similarity score threshold.
+
+        Returns:
+            A list of matching documents sorted by similarity score,
+            or an empty list if the search fails.
+        """
         search_body = {
             "size": k,
             "query": {
@@ -534,7 +567,15 @@ class OpenSearchRAGService:
             return []
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get index statistics"""
+        """Gets statistics about the OpenSearch index.
+
+        Returns:
+            A dictionary containing:
+                - total_documents: Total number of indexed documents.
+                - unique_papers: Number of distinct papers in the index.
+                - index_name: Name of the index.
+            Returns an empty dictionary if an error occurs.
+        """
         try:
             stats = self.client.indices.stats(index=self.index_name)
             doc_count = stats['indices'][self.index_name]['total']['docs']['count']
@@ -570,7 +611,11 @@ class OpenSearchRAGService:
 
 
 def main():
-    """Main function: demonstrates the usage of the RAG service"""
+    """Demonstrates the usage of the RAG service.
+
+    Initializes the RAG service, loads cognition data, indexes documents,
+    displays statistics, and runs example queries to show search functionality.
+    """
     # Initialize the RAG service
     rag_service = OpenSearchRAGService()
 

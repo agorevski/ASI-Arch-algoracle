@@ -28,7 +28,18 @@ set_tracing_disabled(True)
 
 
 async def run_single_experiment() -> bool:
-    """Run single experiment loop - using pipeline categorized logging."""
+    """Run a single experiment loop using pipeline categorized logging.
+
+    Executes the complete experiment pipeline including program sampling,
+    evolution, evaluation, analysis, and database update steps.
+
+    Returns:
+        bool: True if the experiment completed successfully, False otherwise.
+
+    Raises:
+        KeyboardInterrupt: If the user interrupts the experiment.
+        Exception: For any unexpected errors during pipeline execution.
+    """
     # Start a new pipeline process
     pipeline_id = start_pipeline("experiment")
 
@@ -95,7 +106,14 @@ async def run_single_experiment() -> bool:
 
 
 async def main():
-    """Main function - continuous experiment execution."""
+    """Execute continuous experiment pipeline.
+
+    Runs experiments in an infinite loop, retrying failed experiments after
+    a 60-second delay. Handles keyboard interrupts gracefully.
+
+    Returns:
+        None
+    """
     set_tracing_disabled(True)
 
     log_info("Starting continuous experiment pipeline...")

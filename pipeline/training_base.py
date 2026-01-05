@@ -46,7 +46,11 @@ class TrainingConfig:
     output_dir: str = "files/analysis"
 
     def __post_init__(self):
-        """Post-initialization processing"""
+        """Post-initialization processing.
+
+        Sets model_name from model_file if not provided, creates debug directory
+        path based on current architecture, and ensures output directories exist.
+        """
         if self.model_name is None:
             self.model_name = Path(self.model_file).stem
 
@@ -109,7 +113,12 @@ class TrainingPipeline(ABC):
         logger.info(f"Initialized {self.__class__.__name__} with device: {self.device}")
 
     def _determine_device(self) -> str:
-        """Determine the computation device to use"""
+        """Determine the computation device to use.
+
+        Returns:
+            str: The device string ('cuda' or 'cpu'). If config.device is 'auto',
+                returns 'cuda' if available, otherwise 'cpu'.
+        """
         if self.config.device == 'auto':
             return 'cuda' if torch.cuda.is_available() else 'cpu'
         return self.config.device
@@ -210,7 +219,15 @@ class TrainingPipeline(ABC):
             return None, None
 
     def _save_loss_history(self, loss_history: List[Tuple[int, float]]) -> str:
-        """Save training loss history to CSV file"""
+        """Save training loss history to CSV file.
+
+        Args:
+            loss_history: List of (step, loss) tuples representing
+                the training loss at each recorded step.
+
+        Returns:
+            str: Path to the saved loss history CSV file.
+        """
         loss_file = Path(self.config.output_dir) / "loss.csv"
         with open(loss_file, 'w', newline='') as f:
             writer = csv.writer(f)
@@ -221,8 +238,15 @@ class TrainingPipeline(ABC):
         return str(loss_file)
 
     def _save_benchmark_results(self, benchmark_results: Dict[str, float], model_name: str) -> str:
-        """Save benchmark results to CSV file"""
+        """Save benchmark results to CSV file.
 
+        Args:
+            benchmark_results: Dictionary mapping benchmark names to their scores.
+            model_name: Name of the model being evaluated.
+
+        Returns:
+            str: Path to the saved benchmark results CSV file.
+        """
         benchmark_file = Path(self.config.output_dir) / "benchmark.csv"
         with open(benchmark_file, 'w', newline='') as f:
             writer = csv.writer(f)
@@ -304,7 +328,15 @@ class TrainingPipeline(ABC):
             return results
 
     def _save_error_info(self, error: Exception, exception_stack: str):
-        """Save error information for debugging"""
+        """Save error information for debugging.
+
+        Creates a timestamped error file in the debug directory containing
+        the error message, stack trace, model file path, and configuration.
+
+        Args:
+            error: The exception that occurred during training.
+            exception_stack: The formatted stack trace string.
+        """
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         error_file = Path(self.config.debug_dir) / f"training_error_{timestamp}.txt"
@@ -316,7 +348,15 @@ class TrainingPipeline(ABC):
         logger.info(f"Error information saved to {error_file}")
 
     def _print_summary(self, results: TrainingResults):
-        """Print training summary"""
+        """Print training summary.
+
+        Logs a formatted summary of training results including model name,
+        parameter count, training time, final loss, average benchmark score,
+        and output file paths.
+
+        Args:
+            results: TrainingResults object containing all training metrics.
+        """
         logger.info("\n" + "="*50)
         logger.info("TRAINING SUMMARY")
         logger.info("="*50)
@@ -332,13 +372,28 @@ class TrainingPipeline(ABC):
         logger.info("="*50)
 
     def get_config(self) -> TrainingConfig:
-        """Get current configuration"""
+        """Get current configuration.
+
+        Returns:
+            TrainingConfig: The configuration object used to initialize
+                this training pipeline.
+        """
         return self.config
 
     def get_model(self) -> Optional[nn.Module]:
-        """Get loaded model"""
+        """Get loaded model.
+
+        Returns:
+            Optional[nn.Module]: The loaded model if load_model has been called,
+                otherwise None.
+        """
         return self.model
 
     def get_dataset(self) -> Optional[Dataset]:
-        """Get created dataset"""
+        """Get created dataset.
+
+        Returns:
+            Optional[Dataset]: The created dataset if create_dataset has been
+                called, otherwise None.
+        """
         return self.dataset

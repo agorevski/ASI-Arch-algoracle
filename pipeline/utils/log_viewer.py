@@ -22,12 +22,23 @@ from agent_logger import AgentLogger
 
 class LogViewer:
     def __init__(self, log_dir: str = "../logs/agent_calls"):
+        """Initialize the LogViewer with a log directory.
+
+        Args:
+            log_dir: Path to the directory containing agent call logs.
+                Defaults to "../logs/agent_calls".
+        """
         self.log_dir = Path(log_dir)
         self.main_log_file = self.log_dir / "agent_calls.log"
         self.detailed_dir = self.log_dir / "detailed"
 
     def get_all_logs(self) -> List[Dict[str, Any]]:
-        """Get all log entries."""
+        """Get all log entries from the main log file.
+
+        Returns:
+            A list of dictionaries, each representing a log entry parsed
+            from the JSON lines in the main log file.
+        """
         if not self.main_log_file.exists():
             return []
 
@@ -42,7 +53,11 @@ class LogViewer:
         return logs
 
     def show_stats(self):
-        """Show statistics."""
+        """Show statistics for all agent calls.
+
+        Prints the total number of calls, calls grouped by agent name,
+        and calls grouped by status to stdout.
+        """
         logger = AgentLogger(str(self.log_dir))
         stats = logger.get_agent_call_stats()
 
@@ -58,7 +73,14 @@ class LogViewer:
             print(f"  {status}: {count} times")
 
     def list_calls(self, agent_filter: Optional[str] = None, status_filter: Optional[str] = None, limit: Optional[int] = None):
-        """List call records."""
+        """List call records with optional filtering.
+
+        Args:
+            agent_filter: If provided, only show calls from this agent name.
+            status_filter: If provided, only show calls with this status
+                (e.g., "completed", "failed").
+            limit: If provided, limit the output to this many records.
+        """
         logs = self.get_all_logs()
 
         # Filter
@@ -92,7 +114,11 @@ class LogViewer:
             print(f"{status_symbol} {formatted_time} | {agent_name:15} | {status:10} | {call_id}")
 
     def show_detail(self, call_id: str):
-        """Show call details."""
+        """Show detailed information for a specific call.
+
+        Args:
+            call_id: The unique identifier of the call to display details for.
+        """
         detailed_files = list(self.detailed_dir.glob(f"{call_id}_*.json"))
 
         if not detailed_files:
@@ -136,7 +162,11 @@ class LogViewer:
             print(f"Failed to read details: {e}")
 
     def show_recent_failures(self, limit: int = 10):
-        """Show recent failed calls."""
+        """Show recent failed calls with error details.
+
+        Args:
+            limit: Maximum number of failed calls to display. Defaults to 10.
+        """
         print("=== Recent Failed Calls ===")
         self.list_calls(status_filter="failed", limit=limit)
 
@@ -152,7 +182,11 @@ class LogViewer:
             print(f"Error: {log.get('error', 'N/A')}")
 
     def list_pipelines(self, limit: Optional[int] = None):
-        """List all pipelines."""
+        """List all pipelines with their status and summary.
+
+        Args:
+            limit: If provided, limit the output to this many pipelines.
+        """
         pipeline_dirs = [d for d in self.log_dir.iterdir() if d.is_dir() and d.name.startswith('pipeline_')]
         pipeline_dirs.sort(key=lambda x: x.name, reverse=True)
 
@@ -196,7 +230,12 @@ class LogViewer:
                 print(f"{status_symbol} {formatted_time} | {pipeline_dir.name} | {status} | {agent_count} agents | {summary}")
 
     def show_pipeline_detail(self, pipeline_id: str):
-        """Show pipeline details."""
+        """Show detailed information for a specific pipeline.
+
+        Args:
+            pipeline_id: The unique identifier of the pipeline
+                (e.g., "pipeline_20240105_123456").
+        """
         pipeline_dir = self.log_dir / pipeline_id
 
         if not pipeline_dir.exists():
@@ -270,7 +309,12 @@ class LogViewer:
                 print(f"  - {file.name}")
 
     def show_pipeline_by_agent(self, agent_name: str, limit: Optional[int] = None):
-        """Show specific agent calls across pipelines."""
+        """Show call records for a specific agent across all pipelines.
+
+        Args:
+            agent_name: The name of the agent to filter by.
+            limit: If provided, limit the number of pipelines to search.
+        """
         print(f"=== Agent '{agent_name}' Pipeline Call Records ===")
 
         pipeline_dirs = [d for d in self.log_dir.iterdir() if d.is_dir() and d.name.startswith('pipeline_')]
@@ -320,6 +364,11 @@ class LogViewer:
 
 
 def main():
+    """Main entry point for the log viewer CLI.
+
+    Parses command-line arguments and dispatches to the appropriate
+    LogViewer method based on the provided options.
+    """
     parser = argparse.ArgumentParser(description='Agent call log viewer')
     # Original options
     parser.add_argument('--stats', action='store_true', help='Show statistics')

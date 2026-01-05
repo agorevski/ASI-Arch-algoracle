@@ -23,11 +23,24 @@ class DatabaseDeleter:
     """Utility class for deleting all database entries"""
 
     def __init__(self):
+        """Initialize the DatabaseDeleter with API URL and storage file path.
+
+        Sets up the base URL for the database API from config and determines
+        the path to the candidate storage JSON file.
+        """
         self.api_base_url = Config.DATABASE
         self.candidate_storage_file = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'candidate_storage.json'))
 
     def check_database_connection(self) -> bool:
-        """Check if database API is accessible"""
+        """Check if the database API is accessible.
+
+        Attempts to connect to the database API and retrieve stats to verify
+        the connection is working properly.
+
+        Returns:
+            bool: True if the database API is accessible and responding,
+                False otherwise.
+        """
         try:
             response = requests.get(f"{self.api_base_url}/stats", timeout=5)
             if response.status_code == 200:
@@ -44,7 +57,15 @@ class DatabaseDeleter:
             return False
 
     def delete_all_elements(self) -> bool:
-        """Delete all elements from the database via API"""
+        """Delete all elements from the database via API.
+
+        Sends a DELETE request to the database API to remove all elements
+        from the database.
+
+        Returns:
+            bool: True if all elements were successfully deleted,
+                False if the deletion failed.
+        """
         url = f"{self.api_base_url}/elements/all"
 
         try:
@@ -66,7 +87,15 @@ class DatabaseDeleter:
             return False
 
     def clear_candidate_storage(self) -> bool:
-        """Clear the candidate storage JSON file"""
+        """Clear the candidate storage JSON file.
+
+        Resets the candidate storage file to an empty state with zero
+        candidates and updates the last_updated timestamp.
+
+        Returns:
+            bool: True if the candidate storage was successfully cleared,
+                False if an error occurred.
+        """
         try:
             # Reset candidate storage to empty state
             empty_storage = {
@@ -86,7 +115,15 @@ class DatabaseDeleter:
             return False
 
     def verify_deletion(self) -> bool:
-        """Verify that all data has been deleted"""
+        """Verify that all data has been deleted.
+
+        Checks the database stats and candidate pool to confirm that
+        all data has been successfully removed.
+
+        Returns:
+            bool: True if the database and candidate pool are both empty,
+                False if any data remains or verification fails.
+        """
         try:
             # Check database stats
             response = requests.get(f"{self.api_base_url}/stats", timeout=5)
@@ -121,7 +158,16 @@ class DatabaseDeleter:
             return False
 
     def run(self) -> bool:
-        """Main deletion function"""
+        """Execute the main deletion workflow.
+
+        Performs the complete deletion process including connection check,
+        user confirmation, element deletion, candidate storage clearing,
+        and verification of the deletion.
+
+        Returns:
+            bool: True if all deletion steps completed successfully,
+                False if any step failed or user cancelled.
+        """
         logging.info("🚀 ASI-Arch Database Deletion Utility")
         logging.info("=" * 60)
         logging.warning("⚠️  WARNING: This will DELETE ALL data from the database!")
@@ -169,7 +215,14 @@ class DatabaseDeleter:
 
 
 def main():
-    """Entry point for the script"""
+    """Entry point for the script.
+
+    Creates a DatabaseDeleter instance, runs the deletion workflow,
+    and exits with appropriate status code.
+
+    Returns:
+        None: Exits with code 0 on success, 1 on failure.
+    """
     deleter = DatabaseDeleter()
     success = deleter.run()
 

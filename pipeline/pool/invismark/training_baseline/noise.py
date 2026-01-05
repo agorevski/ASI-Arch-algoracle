@@ -10,6 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 def supported_transforms(image_size):
+    """Get a dictionary of supported image transformation augmentations.
+
+    Args:
+        image_size: Tuple of (height, width) specifying the target image size
+            for transforms that require it.
+
+    Returns:
+        dict: Dictionary mapping transform names to their corresponding
+            Kornia or torchvision augmentation objects.
+    """
     return {
         'HFlip': aug.RandomHorizontalFlip(p=1.0),
         'VFlip': aug.RandomVerticalFlip(p=1.0),
@@ -34,7 +44,15 @@ def supported_transforms(image_size):
 
 
 class Noiser(nn.Module):
+    """Module that applies random noise and augmentation transforms to images."""
+
     def __init__(self, num_transforms):
+        """Initialize the Noiser module.
+
+        Args:
+            num_transforms: Number of transforms to randomly apply from each
+                category (geometric and perturbation) during forward pass.
+        """
         super().__init__()
         self.num_transforms = num_transforms
         keys = list(supported_transforms((256, 256)).keys())
@@ -42,6 +60,17 @@ class Noiser(nn.Module):
         self.pert_transforms = keys[5:]
 
     def forward(self, input, noises=None):
+        """Apply noise transforms to input images.
+
+        Args:
+            input: Input tensor of images with shape (batch, channels, height, width)
+                or similar. Values expected in range [-1, 1].
+            noises: Optional list of specific transform names to apply. If None,
+                randomly selects transforms from geometric and perturbation categories.
+
+        Returns:
+            torch.Tensor: Transformed images with same shape as input.
+        """
         shape = input.shape
         input = input.view(-1, 3, *shape[2:])
         if noises:
@@ -56,6 +85,20 @@ class Noiser(nn.Module):
         return input
 
     def apply_noise(self, input, key):
+        """Apply a specific noise transform to the input.
+
+        Args:
+            input: Input tensor of images with shape (batch, 3, height, width).
+                Values expected in range [-1, 1].
+            key: String name of the transform to apply. Must be a key in
+                the dictionary returned by supported_transforms().
+
+        Returns:
+            torch.Tensor: Transformed images with same shape as input.
+
+        Raises:
+            Exception: If the specified key is not a supported transformation.
+        """
         transforms = supported_transforms(input.shape[-2:])
         if key not in transforms:
             raise Exception(f"{key} is not a supported image transformation.")

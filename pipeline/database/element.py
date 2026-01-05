@@ -22,11 +22,24 @@ class DataElement:
     summary: Optional[str] = None
 
     def to_dict(self) -> Dict:
-        """Convert DataElement instance to dictionary."""
+        """Convert DataElement instance to dictionary.
+
+        Returns:
+            Dict: A dictionary representation of the DataElement instance
+                containing all fields and their values.
+        """
         return asdict(self)
 
     async def get_context(self) -> str:
-        """Generate enhanced context with structured experimental evidence presentation."""
+        """Generate enhanced context with structured experimental evidence presentation.
+
+        Summarizes the experimental data using an AI summarizer agent and formats
+        the results into a structured markdown portfolio.
+
+        Returns:
+            str: A formatted markdown string containing the experimental evidence
+                portfolio with metrics, implementation code, and synthesized insights.
+        """
         summary = await log_agent_run(
             "summarizer",
             summarizer,
@@ -55,5 +68,14 @@ class DataElement:
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'DataElement':
-        """Create DataElement instance from dictionary."""
+        """Create DataElement instance from dictionary.
+
+        Args:
+            data: A dictionary containing DataElement field names as keys
+                and their corresponding values.
+
+        Returns:
+            DataElement: A new DataElement instance populated with the
+                provided dictionary data.
+        """
         return cls(**data)

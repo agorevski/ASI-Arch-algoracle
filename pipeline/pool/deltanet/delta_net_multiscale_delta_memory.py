@@ -17,6 +17,14 @@ from einops import rearrange, repeat
 
 
 def _logit(x: float) -> float:
+    """Compute the logit (inverse sigmoid) of a probability value.
+
+    Args:
+        x: A probability value. Will be clamped to [1e-6, 1-1e-6] for numerical stability.
+
+    Returns:
+        The logit value log(x / (1 - x)).
+    """
     x = min(max(x, 1e-6), 1 - 1e-6)
     return math.log(x / (1 - x))
 
@@ -36,6 +44,14 @@ class DeltaNet(nn.Module):
         dropout: float = 0.1,
         **kwargs,
     ):
+        """Initialize the DeltaNet attention layer.
+
+        Args:
+            hidden_size: The dimensionality of the input and output features.
+            num_heads: Number of attention heads. Must evenly divide hidden_size.
+            dropout: Dropout probability applied after attention and projections.
+            **kwargs: Additional keyword arguments (unused, for compatibility).
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -74,6 +90,11 @@ class DeltaNet(nn.Module):
         self.chunk_size = 128
 
     def _reset_parameters(self):
+        """Initialize model parameters with appropriate schemes.
+
+        Applies Xavier uniform initialization to projection weights, zeros to
+        output bias, and sets retention-related biases for stable training.
+        """
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -99,6 +120,27 @@ class DeltaNet(nn.Module):
         mask: Optional[torch.Tensor] = None,  # [B, T] or [B, T, 1]
         chunk_size: int = 128,
     ) -> torch.Tensor:
+        """Perform the chunked causal multi-timescale delta memory scan.
+
+        This is the core computation that maintains K memory states per head and
+        performs causal updates with input-conditioned retention gating.
+
+        Args:
+            q: Query tensor of shape [B, T, H, D] where B is batch size,
+                T is sequence length, H is number of heads, D is head dimension.
+            k: Key tensor of shape [B, T, H, D].
+            v: Value tensor of shape [B, T, H, D].
+            beta: Dynamic retention gate values in (0, 1) of shape [B, T, H].
+            mix_logits: Unnormalized mixing weights for scales of shape [B, T, H, K]
+                where K is the number of timescales.
+            mask: Optional attention mask of shape [B, T] or [B, T, 1].
+                1 indicates valid positions, 0 indicates padding.
+            chunk_size: Size of chunks for processing. Smaller chunks use less
+                memory but may be slower.
+
+        Returns:
+            Output tensor of shape [B, T, H, D] containing the attention outputs.
+        """
         B, T, H, D = q.shape
         K = mix_logits.shape[-1]
 
@@ -182,12 +224,19 @@ class DeltaNet(nn.Module):
         return out_all
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Forward pass
+        """Compute the forward pass of the DeltaNet attention layer.
+
+        Applies multi-head attention with multi-timescale delta memory, including
+        input-conditioned retention gating and residual connection with layer norm.
+
         Args:
-            x: [batch, seq_len, hidden_size]
-            mask: Optional attention mask [batch, seq_len] (1 for valid, 0 for pad)
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask of shape [batch, seq_len].
+                1 indicates valid positions, 0 indicates padding.
+
         Returns:
-            [batch, seq_len, hidden_size]
+            Output tensor of shape [batch, seq_len, hidden_size] after attention,
+            residual connection, and layer normalization.
         """
         # Residual
         residual = x
@@ -230,6 +279,15 @@ class DeltaNetBlock(nn.Module):
     """Complete DeltaNet transformer block"""
 
     def __init__(self, hidden_size: int, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1):
+        """Initialize the DeltaNet transformer block.
+
+        Args:
+            hidden_size: The dimensionality of the input and output features.
+            num_heads: Number of attention heads for the DeltaNet attention layer.
+            ffn_hidden_size: Hidden size of the feed-forward network.
+                Defaults to 4 * hidden_size if not specified.
+            dropout: Dropout probability applied throughout the block.
+        """
         super().__init__()
         if ffn_hidden_size is None:
             ffn_hidden_size = 4 * hidden_size
@@ -247,6 +305,19 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Compute the forward pass of the DeltaNet block.
+
+        Applies DeltaNet attention followed by a feed-forward network, each with
+        residual connections and layer normalization.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask of shape [batch, seq_len].
+                1 indicates valid positions, 0 indicates padding.
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         x = self.attention(x, mask)
         residual = x
         x = self.ffn(x)
@@ -258,6 +329,17 @@ class DeltaNetModel(nn.Module):
     """Complete DeltaNet model"""
 
     def __init__(self, vocab_size: int, hidden_size: int = 512, num_layers: int = 6, num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1):
+        """Initialize the complete DeltaNet model.
+
+        Args:
+            vocab_size: Size of the vocabulary for token embeddings.
+            hidden_size: Dimensionality of the model's hidden representations.
+            num_layers: Number of DeltaNet transformer blocks.
+            num_heads: Number of attention heads per layer.
+            max_seq_len: Maximum sequence length for positional embeddings.
+                Can be extended dynamically during forward pass if needed.
+            dropout: Dropout probability applied throughout the model.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
@@ -281,10 +363,29 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize embedding parameters with normal distribution.
+
+        Both token and position embeddings are initialized with std=0.02.
+        """
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Compute the forward pass of the DeltaNet model.
+
+        Processes input tokens through embeddings, transformer layers, and produces
+        logits over the vocabulary. Automatically extends position embeddings if
+        the input sequence exceeds max_seq_len.
+
+        Args:
+            input_ids: Token indices of shape [batch, seq_len].
+            attention_mask: Optional mask of shape [batch, seq_len].
+                1 indicates valid positions, 0 indicates padding.
+
+        Returns:
+            Logits tensor of shape [batch, seq_len, vocab_size] representing
+            unnormalized probabilities over the vocabulary for each position.
+        """
         B, T = input_ids.shape
 
         # Position IDs
@@ -314,6 +415,12 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Generate a human-readable summary of the model architecture.
+
+        Returns:
+            A formatted string containing model type, dimensions, layer counts,
+            key innovations, and total parameter count.
+        """
         return f"""
 DeltaNet Architecture Summary (Evolved):
 - Model Type: Linear Attention Transformer with Multi-Timescale Delta Memory
@@ -328,6 +435,22 @@ DeltaNet Architecture Summary (Evolved):
 
 # Factory function for creating the model
 def create_model(vocab_size: int = 50257, hidden_size: int = 512, num_layers: int = 6, num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1) -> DeltaNetModel:
+    """Create a DeltaNet model with the specified configuration.
+
+    Factory function that instantiates a complete DeltaNet model with sensible
+    defaults suitable for language modeling tasks.
+
+    Args:
+        vocab_size: Size of the vocabulary. Defaults to 50257 (GPT-2 vocab size).
+        hidden_size: Dimensionality of hidden representations. Defaults to 512.
+        num_layers: Number of transformer blocks. Defaults to 6.
+        num_heads: Number of attention heads per layer. Defaults to 8.
+        max_seq_len: Maximum sequence length. Defaults to 2048.
+        dropout: Dropout probability. Defaults to 0.1.
+
+    Returns:
+        A configured DeltaNetModel instance ready for training or inference.
+    """
     return DeltaNetModel(
         vocab_size=vocab_size,
         hidden_size=hidden_size,

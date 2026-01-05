@@ -12,14 +12,20 @@ class FAISSManager:
     """FAISS vector index manager for efficient vector similarity search."""
 
     def __init__(self, dimension: int = 4096, index_file: str = "faiss_index.bin", metadata_file: str = "faiss_metadata.pkl", index_type: str = "IP"):  # IP for Inner Product (cosine similarity)
-        """
-        Initialize FAISS manager.
+        """Initialize FAISS manager.
+
+        Creates a new FAISS index manager with the specified configuration.
+        Attempts to load existing index from disk if available.
 
         Args:
-            dimension: Vector dimension
-            index_file: Index file path
-            metadata_file: Metadata file path
-            index_type: Index type, 'IP' for Inner Product, 'L2' for Euclidean distance
+            dimension: Vector dimension. Defaults to 4096.
+            index_file: Path to the FAISS index file. Defaults to "faiss_index.bin".
+            metadata_file: Path to the metadata pickle file. Defaults to "faiss_metadata.pkl".
+            index_type: Type of index to create. 'IP' for Inner Product (cosine similarity),
+                'L2' for Euclidean distance. Defaults to 'IP'.
+
+        Raises:
+            ValueError: If an unsupported index_type is provided.
         """
         self.dimension = dimension
         self.index_file = index_file
@@ -49,7 +55,18 @@ class FAISSManager:
         self._load_index()
 
     def _normalize_vectors(self, vectors: np.ndarray) -> np.ndarray:
-        """Normalize vectors for cosine similarity computation."""
+        """Normalize vectors for cosine similarity computation.
+
+        Applies L2 normalization to vectors when using inner product index type.
+        This is required for cosine similarity search.
+
+        Args:
+            vectors: A 2D numpy array of shape (n, dimension) containing vectors to normalize.
+
+        Returns:
+            The normalized vectors if using IP index type, otherwise returns
+            the original vectors unchanged.
+        """
         if self.index_type != "IP":
             return vectors
 
@@ -60,7 +77,15 @@ class FAISSManager:
         return vectors / norms
 
     def _load_index(self):
-        """Load existing index and metadata."""
+        """Load existing index and metadata from disk.
+
+        Attempts to load a previously saved FAISS index and associated metadata
+        from the configured file paths. If files don't exist or loading fails,
+        initializes empty index and metadata structures.
+
+        Returns:
+            None
+        """
         try:
             if os.path.exists(self.index_file) and os.path.exists(self.metadata_file):
                 # Load index
@@ -89,7 +114,14 @@ class FAISSManager:
             self.next_index = 0
 
     def _save_index(self):
-        """Save index and metadata to file."""
+        """Save index and metadata to file.
+
+        Persists the FAISS index and metadata mappings to disk. The index
+        is saved using FAISS native format, and metadata is pickled.
+
+        Returns:
+            None
+        """
         try:
             # Save FAISS index
             faiss.write_index(self.index, self.index_file)
@@ -109,15 +141,17 @@ class FAISSManager:
             self.logger.error(f"Failed to save index: {e}")
 
     def add_vector(self, vector: List[float], data_id: str) -> bool:
-        """
-        Add vector to index.
+        """Add vector to index.
+
+        Adds a new vector to the FAISS index with the associated data ID.
+        The vector is normalized if using inner product index type.
 
         Args:
-            vector: Vector data
-            data_id: Data ID (MongoDB ObjectId string)
+            vector: Vector data as a list of floats. Must match the configured dimension.
+            data_id: Data ID (typically a MongoDB ObjectId string) to associate with the vector.
 
         Returns:
-            bool: Whether addition was successful
+            True if the vector was added successfully, False otherwise.
         """
         with self.lock:
             try:
@@ -152,15 +186,20 @@ class FAISSManager:
                 return False
 
     def search_similar(self, query_vector: List[float], k: int = 5) -> List[Tuple[str, float]]:
-        """
-        Search for most similar vectors.
+        """Search for most similar vectors.
+
+        Performs a similarity search in the FAISS index to find the k most
+        similar vectors to the query vector. Filters out orphan vectors
+        (vectors that have been logically deleted).
 
         Args:
-            query_vector: Query vector
-            k: Number of results to return
+            query_vector: Query vector as a list of floats. Must match the configured dimension.
+            k: Number of results to return. Defaults to 5.
 
         Returns:
-            List[Tuple[str, float]]: List of (data_id, similarity_score)
+            A list of tuples containing (data_id, similarity_score) pairs,
+            sorted by similarity score in descending order. Returns an empty
+            list if the index is empty or an error occurs.
         """
         with self.lock:
             try:
@@ -217,14 +256,18 @@ class FAISSManager:
                 return []
 
     def remove_vector(self, data_id: str) -> bool:
-        """
-        Remove vector from index (Note: FAISS doesn't support direct deletion, this only marks).
+        """Remove vector from index.
+
+        Marks a vector for removal by deleting its ID mapping. Note that FAISS
+        doesn't support direct vector deletion, so the vector remains in the
+        index but becomes an orphan. Use clean_orphan_vectors() to physically
+        remove orphaned vectors by rebuilding the index.
 
         Args:
-            data_id: Data ID
+            data_id: The data ID of the vector to remove.
 
         Returns:
-            bool: Whether removal was successful
+            True if the vector was found and marked for removal, False otherwise.
         """
         with self.lock:
             try:
@@ -246,11 +289,18 @@ class FAISSManager:
                 return False
 
     def rebuild_index(self, vectors_data: List[Tuple[List[float], str]]):
-        """
-        Rebuild index (clear all data and re-add).
+        """Rebuild index from scratch.
+
+        Clears all existing data and rebuilds the index with the provided vectors.
+        This is useful for cleaning up orphan vectors or re-indexing data.
 
         Args:
-            vectors_data: List of (vector, data_id) tuples
+            vectors_data: A list of tuples, where each tuple contains
+                (vector, data_id). Vectors that don't match the configured
+                dimension are skipped.
+
+        Returns:
+            None
         """
         with self.lock:
             try:
@@ -301,11 +351,18 @@ class FAISSManager:
                 self.logger.error(f"Failed to rebuild index: {e}")
 
     def clean_orphan_vectors(self) -> Dict[str, int]:
-        """
-        Clean orphan vectors (vectors deleted from mapping but still in FAISS index).
+        """Clean orphan vectors from the index.
+
+        Orphan vectors are vectors that have been logically deleted (removed from
+        ID mappings) but still exist in the FAISS index. This method detects such
+        vectors and rebuilds the index to physically remove them.
 
         Returns:
-            Dict[str, int]: Cleanup statistics
+            A dictionary containing cleanup statistics with keys:
+                - total_vectors: Number of vectors after cleanup.
+                - orphan_vectors: Number of orphan vectors found.
+                - cleaned: Number of orphan vectors cleaned.
+                - error: Error message if cleanup failed (only present on error).
         """
         with self.lock:
             try:
@@ -357,7 +414,21 @@ class FAISSManager:
                 return {"error": str(e)}
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get index statistics."""
+        """Get index statistics.
+
+        Calculates and returns various statistics about the FAISS index,
+        including total vectors, dimension, index type, and health status.
+
+        Returns:
+            A dictionary containing index statistics with keys:
+                - total_vectors: Total number of vectors in the FAISS index.
+                - dimension: Vector dimension.
+                - index_type: Type of index ('IP' or 'L2').
+                - active_mappings: Number of active ID mappings.
+                - orphan_vectors: Number of orphaned vectors.
+                - next_index: Next available index position.
+                - health_status: Health status string.
+        """
         # Calculate orphan vector count
         active_indices = set(self.index_to_id_map.keys())
         orphan_count = 0
@@ -376,7 +447,14 @@ class FAISSManager:
         }
 
     def save(self):
-        """Manually save index."""
+        """Manually save index.
+
+        Triggers an immediate save of the index and metadata to disk.
+        Use this to ensure data persistence before shutdown.
+
+        Returns:
+            None
+        """
         self._save_index()
 
 
@@ -385,7 +463,14 @@ _faiss_manager = None
 
 
 def get_faiss_manager() -> FAISSManager:
-    """Get global FAISS manager instance."""
+    """Get global FAISS manager instance.
+
+    Returns a singleton instance of the FAISSManager. Creates a new
+    instance with default parameters if one doesn't exist.
+
+    Returns:
+        The global FAISSManager instance.
+    """
     global _faiss_manager
     if _faiss_manager is None:
         _faiss_manager = FAISSManager()

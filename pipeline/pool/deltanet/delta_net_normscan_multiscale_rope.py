@@ -19,14 +19,36 @@ from einops import rearrange
 
 
 def _inverse_softplus(x: torch.Tensor) -> torch.Tensor:
-    # Numerically stable inverse of softplus for x > 0:
-    # softplus(y) = x => y = x + log(1 - exp(-x))
-    # Use log1p for stability when exp(-x) is small.
+    """Compute the numerically stable inverse of the softplus function.
+
+    For x > 0, computes y such that softplus(y) = x, i.e., y = x + log(1 - exp(-x)).
+    Uses log1p for stability when exp(-x) is small.
+
+    Args:
+        x: Input tensor with positive values.
+
+    Returns:
+        Tensor containing the inverse softplus of the input.
+    """
     x = torch.clamp(x, min=torch.finfo(x.dtype).tiny)
     return x + torch.log1p(-torch.exp(-x))
 
 
 def _rope_sincos(seq_len: int, head_dim: int, device, dtype):
+    """Compute sinusoidal position embeddings for Rotary Position Encoding (RoPE).
+
+    Generates sin and cos frequency tables used for relative positional encoding
+    in attention mechanisms.
+
+    Args:
+        seq_len: Length of the sequence.
+        head_dim: Dimension of each attention head (must be even).
+        device: Device to create tensors on.
+        dtype: Data type for the output tensors.
+
+    Returns:
+        Tuple of (sin, cos) tensors, each with shape [seq_len, head_dim // 2].
+    """
     half = head_dim // 2
     inv_freq = 1.0 / (10000 ** (torch.arange(0, half, device=device, dtype=torch.float32) / half))
     t = torch.arange(seq_len, device=device, dtype=torch.float32)
@@ -37,7 +59,19 @@ def _rope_sincos(seq_len: int, head_dim: int, device, dtype):
 
 
 def _apply_rope(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
-    # x: [B, S, H, D], D even
+    """Apply Rotary Position Encoding (RoPE) to input tensor.
+
+    Applies rotary embeddings to the input by splitting the last dimension in half
+    and applying rotation using the provided sin and cos tables.
+
+    Args:
+        x: Input tensor with shape [B, S, H, D] where D must be even.
+        sin: Sine frequencies with shape [S, D//2].
+        cos: Cosine frequencies with shape [S, D//2].
+
+    Returns:
+        Tensor with RoPE applied, same shape as input [B, S, H, D].
+    """
     B, S, H, D = x.shape
     half = D // 2
     x1 = x[..., :half]
@@ -50,7 +84,29 @@ def _apply_rope(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.
 
 
 class DeltaNet(nn.Module):
+    """Normalized linear attention module with multi-timescale retention and RoPE.
+
+    Implements a DeltaNet attention mechanism featuring normalized linear attention,
+    per-head multi-timescale exponential retention, content-gated writes, RoPE
+    positional encoding, and chunked causal scan for efficient computation.
+
+    Attributes:
+        hidden_size: Model hidden dimension.
+        num_heads: Number of attention heads.
+        head_dim: Dimension per head.
+        chunk_size: Size of chunks for the causal scan.
+        eps: Small constant for numerical stability.
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, dropout: float = 0.1, **kwargs):
+        """Initialize the DeltaNet attention module.
+
+        Args:
+            hidden_size: Model hidden dimension, must be divisible by num_heads.
+            num_heads: Number of attention heads. Defaults to 8.
+            dropout: Dropout probability. Defaults to 0.1.
+            **kwargs: Additional keyword arguments (unused).
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -83,6 +139,11 @@ class DeltaNet(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize projection weights and biases.
+
+        Uses Xavier uniform initialization for projection weights and sets
+        appropriate initial values for biases.
+        """
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -91,11 +152,28 @@ class DeltaNet(nn.Module):
         nn.init.constant_(self.gate_proj.bias, 1.0)
 
     def _phi(self, x: torch.Tensor) -> torch.Tensor:
-        # Positive features for linear attention
+        """Apply feature map for positive features in linear attention.
+
+        Uses ELU activation shifted to ensure strictly positive outputs,
+        enabling numerically stable linear attention computation.
+
+        Args:
+            x: Input tensor of any shape.
+
+        Returns:
+            Tensor with positive feature values, same shape as input.
+        """
         return F.elu(x, alpha=1.0) + 1.0 + 1e-6
 
     def _retention(self) -> torch.Tensor:
-        # Compute per-head retention r in (0,1): r = exp(-1 / (softplus(theta)+1))
+        """Compute per-head retention factors for exponential decay.
+
+        Computes retention r in (0, 1) as r = exp(-1 / (softplus(theta) + 1)),
+        where theta is a learned parameter per head.
+
+        Returns:
+            Tensor of shape [num_heads] with retention factors.
+        """
         tau = F.softplus(self.theta) + 1.0  # [H]
         r = torch.exp(-1.0 / tau)
         return r  # [H]
@@ -108,12 +186,23 @@ class DeltaNet(nn.Module):
                      gate: torch.Tensor,
                      mask: torch.Tensor,
                      r: torch.Tensor) -> torch.Tensor:
-        # Inputs:
-        # phi_q, phi_k: [B, S, H, D]
-        # v: [B, S, H, D]
-        # gate: [B, S, H]
-        # mask: [B, S] (0/1)
-        # r: [H]
+        """Perform chunked causal scan with memory decay and gated writes.
+
+        Implements a linear attention scan with exponential memory decay,
+        processing the sequence in chunks for efficiency. Uses running
+        memory state M and normalizer s for normalized readout.
+
+        Args:
+            phi_q: Query features with shape [B, S, H, D].
+            phi_k: Key features with shape [B, S, H, D].
+            v: Value tensor with shape [B, S, H, D].
+            gate: Content gate strengths with shape [B, S, H].
+            mask: Attention mask with shape [B, S], values 0 or 1.
+            r: Per-head retention factors with shape [H].
+
+        Returns:
+            Output tensor with shape [B, S, H, D].
+        """
         B, S, H, D = phi_q.shape
         # Ensure r matches compute dtype/device to avoid promotions inside the scan loop
         r = r.to(dtype=phi_q.dtype, device=phi_q.device)
@@ -152,7 +241,20 @@ class DeltaNet(nn.Module):
         return y
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        # x: [B, S, D_model]
+        """Apply DeltaNet attention to the input.
+
+        Computes normalized linear attention with RoPE, content gating,
+        multi-timescale retention, and residual connection with layer norm.
+
+        Args:
+            x: Input tensor with shape [B, S, hidden_size].
+            mask: Optional attention mask. Supports boolean masks, 0/1 numeric
+                masks, or additive masks (negative values indicate masked positions).
+                Shape [B, S]. Defaults to None (no masking).
+
+        Returns:
+            Output tensor with shape [B, S, hidden_size].
+        """
         B, S, Dm = x.shape
         residual = x
         # Projections
@@ -208,7 +310,26 @@ class DeltaNet(nn.Module):
 
 
 class DeltaNetBlock(nn.Module):
+    """Transformer block with DeltaNet attention and feed-forward network.
+
+    Combines DeltaNet attention with a GELU-activated feed-forward network
+    and layer normalization for a complete transformer block.
+
+    Attributes:
+        attention: DeltaNet attention module.
+        ffn: Feed-forward network.
+        ffn_layer_norm: Layer normalization after FFN.
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1):
+        """Initialize the DeltaNet transformer block.
+
+        Args:
+            hidden_size: Model hidden dimension.
+            num_heads: Number of attention heads. Defaults to 8.
+            ffn_hidden_size: Hidden dimension of the FFN. Defaults to 4 * hidden_size.
+            dropout: Dropout probability. Defaults to 0.1.
+        """
         super().__init__()
         if ffn_hidden_size is None:
             ffn_hidden_size = 4 * hidden_size
@@ -223,6 +344,15 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Apply the DeltaNet block to the input.
+
+        Args:
+            x: Input tensor with shape [B, S, hidden_size].
+            mask: Optional attention mask with shape [B, S]. Defaults to None.
+
+        Returns:
+            Output tensor with shape [B, S, hidden_size].
+        """
         x = self.attention(x, mask)
         residual = x
         x = self.ffn(x)
@@ -231,7 +361,32 @@ class DeltaNetBlock(nn.Module):
 
 
 class DeltaNetModel(nn.Module):
+    """Complete DeltaNet language model with embedding and LM head.
+
+    A full transformer language model using DeltaNet attention blocks,
+    with tied input/output embeddings for parameter efficiency.
+
+    Attributes:
+        hidden_size: Model hidden dimension.
+        max_seq_len: Maximum sequence length.
+        token_embedding: Token embedding layer.
+        position_embedding: Learned position embedding layer.
+        layers: Stack of DeltaNet blocks.
+        layer_norm: Final layer normalization.
+        lm_head: Language model head (tied with token embedding).
+    """
+
     def __init__(self, vocab_size: int, hidden_size: int = 512, num_layers: int = 6, num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1):
+        """Initialize the DeltaNet language model.
+
+        Args:
+            vocab_size: Size of the vocabulary.
+            hidden_size: Model hidden dimension. Defaults to 512.
+            num_layers: Number of DeltaNet blocks. Defaults to 6.
+            num_heads: Number of attention heads per block. Defaults to 8.
+            max_seq_len: Maximum sequence length. Defaults to 2048.
+            dropout: Dropout probability. Defaults to 0.1.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
@@ -248,10 +403,20 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize embedding weights with normal distribution."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Compute language model logits for input token IDs.
+
+        Args:
+            input_ids: Token IDs with shape [B, S].
+            attention_mask: Optional attention mask with shape [B, S]. Defaults to None.
+
+        Returns:
+            Logits tensor with shape [B, S, vocab_size].
+        """
         B, S = input_ids.shape
         pos_ids = torch.arange(S, device=input_ids.device).unsqueeze(0)
         pos_ids = pos_ids.expand(B, -1)
@@ -266,6 +431,11 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Generate a human-readable summary of the model architecture.
+
+        Returns:
+            Multi-line string describing the model configuration and key features.
+        """
         return f"""
 DeltaNet Architecture Summary (Evolved):
 - Model Type: Normalized Linear Attention Transformer (Fast-weights with retention)
@@ -279,6 +449,23 @@ DeltaNet Architecture Summary (Evolved):
 
 
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
+    """Create a DeltaNet language model with default or custom configuration.
+
+    Factory function that creates a DeltaNetModel with sensible defaults
+    that can be overridden via keyword arguments.
+
+    Args:
+        vocab_size: Size of the vocabulary. Defaults to 50257 (GPT-2 tokenizer size).
+        **kwargs: Override default configuration. Supported keys:
+            hidden_size (int): Model hidden dimension. Default 512.
+            num_layers (int): Number of DeltaNet blocks. Default 6.
+            num_heads (int): Number of attention heads. Default 8.
+            max_seq_len (int): Maximum sequence length. Default 2048.
+            dropout (float): Dropout probability. Default 0.1.
+
+    Returns:
+        Configured DeltaNetModel instance.
+    """
     default_config = {
         'hidden_size': 512,
         'num_layers': 6,

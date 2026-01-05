@@ -15,15 +15,17 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname
 
 
 async def evaluation(name: str, motivation: str) -> bool:
-    """
-    Evaluate training performance for a given experiment.
+    """Evaluate training performance for a given experiment.
+
+    Runs the training process for the specified experiment and saves the
+    results if successful.
 
     Args:
-        name: Experiment name
-        motivation: Experiment motivation
+        name (str): Experiment name used for identification and saving.
+        motivation (str): Experiment motivation or description.
 
     Returns:
-        True if training successful, False otherwise
+        bool: True if training completed successfully, False otherwise.
     """
     success, error_msg = await run_training(name, motivation)
     if not success:
@@ -34,15 +36,23 @@ async def evaluation(name: str, motivation: str) -> bool:
 
 
 async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
-    """
-    Run training script with debugging retry mechanism.
+    """Run training script with debugging retry mechanism.
+
+    Executes the training script, retrying with automated debugging if
+    failures occur. The process continues until success or maximum
+    debug attempts are exhausted.
 
     Args:
-        name: Experiment name
-        motivation: Experiment motivation
+        name (str): Experiment name used for logging and identification.
+        motivation (str): Experiment motivation passed to the debugger.
 
     Returns:
-        Tuple of (success_flag, error_message)
+        Tuple[bool, str]: A tuple containing:
+            - bool: True if training succeeded, False otherwise.
+            - str: Empty string on success, error message on failure.
+
+    Raises:
+        No exceptions are raised; errors are caught and returned in the tuple.
     """
     log_training_progress("Training Started", f"Experiment: {name}")
 
@@ -134,11 +144,16 @@ async def run_training(name: str, motivation: str) -> Tuple[bool, str]:
 
 
 def save(name: str) -> None:
-    """
-    Save source file content to code pool with given name.
+    """Save source file content to code pool with given name.
+
+    Reads the content from the configured source file and writes it to
+    the code pool directory with the specified name.
 
     Args:
-        name: File name to save as
+        name (str): File name (without extension) to save the content as.
+
+    Returns:
+        None
     """
     # Read source file
     with open(Config.SOURCE_FILE, "r", encoding='utf-8') as f:

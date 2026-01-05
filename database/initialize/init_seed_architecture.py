@@ -22,63 +22,122 @@ class SeedArchitectureInitializer(ABC):
     """Base class for seed architecture initialization"""
 
     def __init__(self):
+        """Initialize the seed architecture initializer.
+
+        Sets up the API base URL from the configuration for database communication.
+        """
         self.api_base_url = Config.DATABASE
 
     @abstractmethod
     def get_train_result(self) -> str:
-        """Return the training result data"""
+        """Return the training result data.
+
+        Returns:
+            str: The training result data as a string representation.
+        """
         pass
 
     @abstractmethod
     def get_test_result(self) -> str:
-        """Return the test result data"""
+        """Return the test result data.
+
+        Returns:
+            str: The test result data as a string representation.
+        """
         pass
 
     @abstractmethod
     def get_analysis(self) -> str:
-        """Return the architecture analysis"""
+        """Return the architecture analysis.
+
+        Returns:
+            str: The analysis of the architecture's design and capabilities.
+        """
         pass
 
     @abstractmethod
     def get_cognition(self) -> str:
-        """Return the research context and cognition"""
+        """Return the research context and cognition.
+
+        Returns:
+            str: The research context and cognitive aspects of the architecture.
+        """
         pass
 
     @abstractmethod
     def get_log(self) -> str:
-        """Return the training log"""
+        """Return the training log.
+
+        Returns:
+            str: The training log containing execution details and metrics.
+        """
         pass
 
     @abstractmethod
     def get_motivation(self) -> str:
-        """Return the research motivation"""
+        """Return the research motivation.
+
+        Returns:
+            str: The motivation and rationale behind the architecture research.
+        """
         pass
 
     @abstractmethod
     def get_name(self) -> str:
-        """Return the seed element name"""
+        """Return the seed element name.
+
+        Returns:
+            str: The unique name identifier for the seed element.
+        """
         pass
 
     @abstractmethod
     def get_summary(self) -> str:
-        """Return the seed element summary"""
+        """Return the seed element summary.
+
+        Returns:
+            str: A brief summary describing the seed element.
+        """
         pass
 
     @abstractmethod
     def get_source_path(self) -> str:
-        """Return the seed element source path"""
+        """Return the seed element source path.
+
+        Returns:
+            str: The file system path to the source code file.
+        """
         pass
 
     def get_pipeline_path(self) -> Path:
-        """Return the path to the pipeline directory. Override if different."""
+        """Return the path to the pipeline directory.
+
+        Override this method if the pipeline directory is in a different location.
+
+        Returns:
+            Path: The path to the pipeline directory.
+        """
         return Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'pipeline'))
 
     def get_display_name(self) -> str:
-        """Return the display name for console output. Override if different."""
+        """Return the display name for console output.
+
+        Override this method to provide a custom display name for logging.
+
+        Returns:
+            str: The human-readable display name for console output.
+        """
         return "seed architecture"
 
     def read_source_file(self) -> str:
-        """Read the source code"""
+        """Read the source code from the file system.
+
+        Returns:
+            str: The contents of the source code file.
+
+        Raises:
+            FileNotFoundError: If the source file does not exist at the specified path.
+        """
         source_path = self.get_source_path()
         if not os.path.exists(source_path):
             raise FileNotFoundError(f"Source file not found: {source_path}")
@@ -87,7 +146,16 @@ class SeedArchitectureInitializer(ABC):
             return f.read()
 
     def create_seed_element(self) -> dict:
-        """Create the seed data element"""
+        """Create the seed data element.
+
+        Assembles all seed element components into a dictionary structure
+        suitable for database storage.
+
+        Returns:
+            dict: A dictionary containing the complete seed element with keys:
+                time, name, result, program, analysis, cognition, log,
+                motivation, and summary.
+        """
         current_time = datetime.now().isoformat()
 
         program = self.read_source_file()
@@ -110,8 +178,13 @@ class SeedArchitectureInitializer(ABC):
         }
 
     async def add_seed_to_database(self) -> bool:
-        """Add the seed element to the database via API"""
+        """Add the seed element to the database via API.
 
+        Creates the seed element and sends it to the database API endpoint.
+
+        Returns:
+            bool: True if the seed element was added successfully, False otherwise.
+        """
         logging.info(f"Creating seed element: {self.get_name()}...")
         element = self.create_seed_element()
 
@@ -137,7 +210,15 @@ class SeedArchitectureInitializer(ABC):
             return False
 
     def update_candidate_storage(self) -> bool:
-        """Update the candidate storage JSON file"""
+        """Update the candidate storage JSON file.
+
+        Updates the candidate_storage.json file with the new seed element
+        information, including candidate indices and timestamp.
+
+        Returns:
+            bool: True if the candidate storage was updated successfully,
+                False otherwise.
+        """
         candidate_file = Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'candidate_storage.json'))
 
         try:
@@ -162,8 +243,14 @@ class SeedArchitectureInitializer(ABC):
             return False
 
     async def run(self) -> bool:
-        """Main initialization function"""
+        """Main initialization function.
 
+        Executes the complete initialization workflow including database
+        connectivity check, seed element addition, and candidate storage update.
+
+        Returns:
+            bool: True if initialization completed successfully, False otherwise.
+        """
         logging.info(f"🚀 Initializing ASI-Arch with seed {self.get_display_name()}")
         logging.info("=" * 60)
 

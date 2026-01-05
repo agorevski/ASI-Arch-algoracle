@@ -22,9 +22,21 @@ from einops import rearrange
 # ==========================
 
 def _build_rope_cache(seq_len: int, head_dim: int, device: torch.device, dtype: torch.dtype):
-    """Build RoPE cos/sin caches for a given sequence length and head_dim.
-    Returns cos, sin with shape [1, seq_len, 1, head_dim].
+    """Build RoPE cos/sin caches for a given sequence length and head dimension.
+
     Uses float32 for cache construction for numerical stability, then casts to dtype.
+
+    Args:
+        seq_len: Sequence length for position embeddings.
+        head_dim: Dimension of each attention head (must be even).
+        device: Torch device for tensor allocation.
+        dtype: Target dtype for output tensors.
+
+    Returns:
+        Tuple of (cos, sin) tensors, each with shape [1, seq_len, 1, head_dim].
+
+    Raises:
+        AssertionError: If head_dim is not even.
     """
     assert head_dim % 2 == 0, "RoPE head_dim must be even"
     half_dim = head_dim // 2
@@ -42,9 +54,17 @@ def _build_rope_cache(seq_len: int, head_dim: int, device: torch.device, dtype: 
 
 
 def _apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
-    """Apply rotary embeddings to x.
-    x: [batch, seq_len, heads, head_dim]
-    cos/sin: [1, seq_len, 1, head_dim]
+    """Apply rotary position embeddings to input tensor.
+
+    Interleaves even/odd dimensions and applies rotation using cos/sin caches.
+
+    Args:
+        x: Input tensor of shape [batch, seq_len, heads, head_dim].
+        cos: Cosine cache of shape [1, seq_len, 1, head_dim].
+        sin: Sine cache of shape [1, seq_len, 1, head_dim].
+
+    Returns:
+        Tensor with RoPE applied, same shape as input [batch, seq_len, heads, head_dim].
     """
     # Interleave even/odd dimensions
     x_1 = x[..., ::2]
@@ -75,9 +95,26 @@ def msdelta_chunk(
     token_mask: Optional[torch.Tensor] = None,  # [B, C] or None
 ):
     """Process one chunk sequentially with multi-scale gated delta updates.
+
+    Applies delta rule updates to multi-scale associative memory states
+    with gated retention and update mechanisms.
+
+    Args:
+        q_chunk: Query tensor of shape [B, C, H, D] where B=batch, C=chunk_size,
+            H=heads, D=head_dim.
+        k_chunk: Key tensor of shape [B, C, H, D].
+        v_chunk: Value tensor of shape [B, C, H, D].
+        gate_f: Forget gate tensor of shape [B, C, H] controlling retention.
+        gate_u: Update gate tensor of shape [B, C, H] controlling write strength.
+        w_mix: Timescale mixing weights of shape [B, C, H, M] where M=num_scales.
+        alphas: Base decay rates per head per scale of shape [H, M] in range (0, 1).
+        state: Multi-scale memory state of shape [B, H, M, D, D].
+        token_mask: Optional mask of shape [B, C] for padding tokens.
+
     Returns:
-        out_chunk: [B, C, H, D]
-        new_state: [B, H, M, D, D]
+        Tuple of (out_chunk, new_state) where:
+            - out_chunk: Output tensor of shape [B, C, H, D].
+            - new_state: Updated memory state of shape [B, H, M, D, D].
     """
     B, C, H, D = q_chunk.shape
     M = w_mix.shape[-1]
@@ -138,6 +175,19 @@ class DeltaNet(nn.Module):
     """
 
     def __init__(self, hidden_size: Optional[int] = None, num_heads: int = 8, dropout: float = 0.1, d_model: Optional[int] = None, **kwargs):
+        """Initialize DeltaNet attention layer.
+
+        Args:
+            hidden_size: Model hidden dimension. Either this or d_model must be specified.
+            num_heads: Number of attention heads.
+            dropout: Dropout probability.
+            d_model: Alias for hidden_size for compatibility.
+            **kwargs: Additional arguments (ignored).
+
+        Raises:
+            AssertionError: If neither hidden_size nor d_model is specified,
+                if hidden_size is not divisible by num_heads, or if head_dim is odd.
+        """
         super().__init__()
         # Support both hidden_size and d_model for compatibility
         if hidden_size is None and d_model is not None:
@@ -177,6 +227,7 @@ class DeltaNet(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize layer parameters with Xavier uniform distribution."""
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -186,7 +237,17 @@ class DeltaNet(nn.Module):
         nn.init.xavier_uniform_(self.gate_proj.weight)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """x: [B, S, D] -> [B, S, D]"""
+        """Forward pass through DeltaNet attention layer.
+
+        Args:
+            x: Input tensor of shape [B, S, D] where B=batch, S=sequence_length,
+                D=hidden_size.
+            mask: Optional attention mask of shape [B, S] or [B, S, 1] where
+                1 indicates valid tokens and 0 indicates padding.
+
+        Returns:
+            Output tensor of shape [B, S, D] after attention and residual connection.
+        """
         B, S, D = x.shape
         H = self.num_heads
         Hd = self.head_dim
@@ -263,6 +324,19 @@ class DeltaNetBlock(nn.Module):
     """Complete DeltaNet transformer block (attention + FFN)."""
 
     def __init__(self, hidden_size: Optional[int] = None, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1, d_model: Optional[int] = None):
+        """Initialize DeltaNet transformer block.
+
+        Args:
+            hidden_size: Model hidden dimension. Either this or d_model must be specified.
+            num_heads: Number of attention heads.
+            ffn_hidden_size: Feed-forward network hidden dimension.
+                Defaults to 4 * hidden_size.
+            dropout: Dropout probability.
+            d_model: Alias for hidden_size for compatibility.
+
+        Raises:
+            AssertionError: If neither hidden_size nor d_model is specified.
+        """
         super().__init__()
         # Support both hidden_size and d_model for compatibility
         if hidden_size is None and d_model is not None:
@@ -281,6 +355,15 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Forward pass through DeltaNet transformer block.
+
+        Args:
+            x: Input tensor of shape [B, S, D].
+            mask: Optional attention mask of shape [B, S] or [B, S, 1].
+
+        Returns:
+            Output tensor of shape [B, S, D] after attention and FFN.
+        """
         x = self.attention(x, mask)
         residual = x
         x = self.ffn(x)
@@ -295,6 +378,20 @@ class DeltaNetModel(nn.Module):
 
     def __init__(self, vocab_size: int, hidden_size: Optional[int] = 512, num_layers: int = 6,
                  num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1, d_model: Optional[int] = None):
+        """Initialize DeltaNet language model.
+
+        Args:
+            vocab_size: Size of the vocabulary.
+            hidden_size: Model hidden dimension.
+            num_layers: Number of DeltaNet transformer blocks.
+            num_heads: Number of attention heads.
+            max_seq_len: Maximum sequence length.
+            dropout: Dropout probability.
+            d_model: Alias for hidden_size for compatibility.
+
+        Raises:
+            AssertionError: If neither hidden_size nor d_model is specified.
+        """
         super().__init__()
         # Support both hidden_size and d_model for compatibility
         if hidden_size is None and d_model is not None:
@@ -320,9 +417,19 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize embedding weights with normal distribution (std=0.02)."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Forward pass through DeltaNet language model.
+
+        Args:
+            input_ids: Token IDs of shape [B, S] where B=batch, S=sequence_length.
+            attention_mask: Optional mask of shape [B, S] for padding tokens.
+
+        Returns:
+            Logits tensor of shape [B, S, vocab_size].
+        """
         B, S = input_ids.shape
         x = self.token_embedding(input_ids)
         x = self.dropout(x)
@@ -333,6 +440,11 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Generate a human-readable summary of the model architecture.
+
+        Returns:
+            Multi-line string describing model configuration and parameter count.
+        """
         return f"""
 DeltaNet Architecture Summary (Evolved):
 - Model Type: Linear Attention Transformer with Multi-Scale Gated Delta Memory
@@ -351,11 +463,20 @@ DeltaNet Architecture Summary (Evolved):
 
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
     """Create a DeltaNet model with default parameters.
+
+    Factory function for instantiating DeltaNetModel with sensible defaults.
+
     Args:
-        vocab_size: Vocabulary size
-        **kwargs: Additional model parameters
+        vocab_size: Size of the vocabulary. Defaults to 50257 (GPT-2 vocab size).
+        **kwargs: Additional model parameters to override defaults. Supported keys:
+            - hidden_size (int): Model hidden dimension. Default 512.
+            - num_layers (int): Number of transformer blocks. Default 6.
+            - num_heads (int): Number of attention heads. Default 8.
+            - max_seq_len (int): Maximum sequence length. Default 2048.
+            - dropout (float): Dropout probability. Default 0.1.
+
     Returns:
-        DeltaNetModel instance
+        Configured DeltaNetModel instance ready for training or inference.
     """
     default_config = {
         'hidden_size': 512,

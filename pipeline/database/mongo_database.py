@@ -77,7 +77,14 @@ class MongoDBAPIClient:
         self._test_connection()
 
     def _test_connection(self) -> bool:
-        """Test API connection."""
+        """Test API connection.
+
+        Returns:
+            bool: True if connection is healthy, False otherwise.
+
+        Raises:
+            MongoDBAPIException: If unable to connect to the API service.
+        """
         try:
             response = self._make_request("GET", "/health")
             if response.get("status") == "healthy":
@@ -150,11 +157,19 @@ class MongoDBAPIClient:
     # ========== Basic Interface ==========
 
     def get_api_info(self) -> Dict[str, Any]:
-        """Get API basic information."""
+        """Get API basic information.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing API information.
+        """
         return self._make_request("GET", "/")
 
     def health_check(self) -> Dict[str, Any]:
-        """Health check."""
+        """Health check.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing health status information.
+        """
         return self._make_request("GET", "/health")
 
     # ========== Data Operation Interface ==========
@@ -212,7 +227,16 @@ class MongoDBAPIClient:
         )
 
     def add_element_from_dict(self, element_data: Dict[str, str]) -> ApiResponse:
-        """Add data element from dictionary."""
+        """Add data element from dictionary.
+
+        Args:
+            element_data: Dictionary containing element fields (time, name, result,
+                program, motivation, analysis, cognition, log, and optionally
+                parent and summary).
+
+        Returns:
+            ApiResponse: API response object indicating success or failure.
+        """
         return self.add_element(
             time=element_data["time"],
             name=element_data["name"],
@@ -298,7 +322,14 @@ class MongoDBAPIClient:
             raise e
 
     def delete_elements_by_name(self, name: str) -> ApiResponse:
-        """Delete data element by name."""
+        """Delete data element by name.
+
+        Args:
+            name: Element name to delete.
+
+        Returns:
+            ApiResponse: API response object indicating success or failure.
+        """
         try:
             response = self._make_request("DELETE", f"/elements/by-name/{name}")
             return ApiResponse(
@@ -487,5 +518,12 @@ class MongoDBAPIClient:
 # ========== Convenience Factory Function ==========
 
 def create_client(base_url: str = Config.DATABASE) -> MongoDBAPIClient:
-    """Create API client."""
+    """Create API client.
+
+    Args:
+        base_url: API service base URL. Defaults to Config.DATABASE.
+
+    Returns:
+        MongoDBAPIClient: Configured MongoDB API client instance.
+    """
     return MongoDBAPIClient(base_url=base_url)

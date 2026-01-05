@@ -281,10 +281,30 @@ Provide realistic expectations with specific metrics:
 
 
 def get_field_description(field_name):
-    """Get the description for a specific field."""
+    """Get the description for a specific field.
+
+    Args:
+        field_name: The name of the field to retrieve the description for.
+            Valid values are: DESIGN_INSIGHT, EXPERIMENTAL_TRIGGER_PATTERNS,
+            BACKGROUND, ALGORITHMIC_INNOVATION, IMPLEMENTATION_GUIDANCE.
+
+    Returns:
+        The description string for the specified field, or "Field description
+        not found." if the field name is not recognized.
+    """
     return FIELD_DESCRIPTIONS.get(field_name, "Field description not found.")
 
 
 def get_metaprompt(field_name):
-    """Get the metaprompt for generating a specific field."""
+    """Get the metaprompt for generating a specific field.
+
+    Args:
+        field_name: The name of the field to retrieve the metaprompt for.
+            Valid values are: DESIGN_INSIGHT, EXPERIMENTAL_TRIGGER_PATTERNS,
+            BACKGROUND, ALGORITHMIC_INNOVATION, IMPLEMENTATION_GUIDANCE.
+
+    Returns:
+        The metaprompt string for the specified field, or "Metaprompt not
+        found." if the field name is not recognized.
+    """
     return METAPROMPTS.get(field_name, "Metaprompt not found.")

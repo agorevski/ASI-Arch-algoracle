@@ -22,6 +22,14 @@ class RMSNorm(nn.Module):
     """
 
     def __init__(self, dim: int, eps: float = 1e-6, elementwise_affine: bool = True):
+        """Initialize RMSNorm layer.
+
+        Args:
+            dim: The dimension of the input features to normalize.
+            eps: Small constant for numerical stability. Defaults to 1e-6.
+            elementwise_affine: If True, learns a per-element scaling weight.
+                Defaults to True.
+        """
         super().__init__()
         self.eps = eps
         self.dim = dim
@@ -31,7 +39,14 @@ class RMSNorm(nn.Module):
             self.register_parameter("weight", None)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [..., dim]
+        """Apply RMS normalization to input tensor.
+
+        Args:
+            x: Input tensor of shape [..., dim].
+
+        Returns:
+            Normalized tensor of the same shape as input.
+        """
         rms = x.pow(2).mean(dim=-1, keepdim=True).add(self.eps).rsqrt()
         out = x * rms
         if self.weight is not None:
@@ -43,10 +58,26 @@ class DeltaRule(nn.Module):
     """Baseline Delta rule for linear attention computation (legacy, unused in evolved DeltaNet)."""
 
     def __init__(self, hidden_size: int):
+        """Initialize the DeltaRule module.
+
+        Args:
+            hidden_size: Dimension of the hidden state.
+        """
         super().__init__()
         self.hidden_size = hidden_size
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, beta: torch.Tensor) -> torch.Tensor:
+        """Compute delta rule attention with recurrent memory updates.
+
+        Args:
+            q: Query tensor of shape [batch_size, seq_len, hidden_size].
+            k: Key tensor of shape [batch_size, seq_len, hidden_size].
+            v: Value tensor of shape [batch_size, seq_len, hidden_size].
+            beta: Decay factor tensor of shape [batch_size, seq_len].
+
+        Returns:
+            Output tensor of shape [batch_size, seq_len, hidden_size].
+        """
         batch_size, seq_len, hidden_size = q.shape
         h_t = torch.zeros(batch_size, hidden_size, hidden_size, device=q.device, dtype=q.dtype)
         outputs = []
@@ -74,6 +105,19 @@ class DeltaNet(nn.Module):
     """
 
     def __init__(self, hidden_size: int, num_heads: int = 8, dropout: float = 0.1, chunk_size: int = 128, **kwargs):
+        """Initialize the DeltaNet attention layer.
+
+        Args:
+            hidden_size: Dimension of the model hidden state.
+            num_heads: Number of attention heads. Defaults to 8.
+            dropout: Dropout probability. Defaults to 0.1.
+            chunk_size: Size of chunks for memory-efficient processing.
+                Defaults to 128.
+            **kwargs: Additional keyword arguments (unused).
+
+        Raises:
+            AssertionError: If hidden_size is not divisible by num_heads.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -114,6 +158,12 @@ class DeltaNet(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize model parameters.
+
+        Uses Xavier uniform initialization for projection weights and
+        configures beta projection for high retention (~0.99). Per-head
+        base decays are initialized with multi-timescale diversity.
+        """
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -144,7 +194,16 @@ class DeltaNet(nn.Module):
 
     @torch.compile
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        # Input: [b, s, d]
+        """Perform forward pass through the DeltaNet attention layer.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask of shape [batch, seq_len] where
+                1 indicates valid tokens and 0 indicates padding.
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         b, s, d = x.shape
 
         # Residual connection
@@ -278,6 +337,15 @@ class DeltaNetBlock(nn.Module):
     """Complete DeltaNet transformer block using evolved DeltaNet layer."""
 
     def __init__(self, hidden_size: int, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1):
+        """Initialize a DeltaNet transformer block.
+
+        Args:
+            hidden_size: Dimension of the model hidden state.
+            num_heads: Number of attention heads. Defaults to 8.
+            ffn_hidden_size: Hidden size of the feed-forward network.
+                Defaults to 4 * hidden_size if not specified.
+            dropout: Dropout probability. Defaults to 0.1.
+        """
         super().__init__()
         if ffn_hidden_size is None:
             ffn_hidden_size = 4 * hidden_size
@@ -295,6 +363,15 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Perform forward pass through the transformer block.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask of shape [batch, seq_len].
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         x = self.attention(x, mask)
         residual = x
         x = self.ffn(x)
@@ -308,12 +385,26 @@ class SinusoidalPositionalEmbedding(nn.Module):
     """
 
     def __init__(self, dim: int, base: float = 10000.0):
+        """Initialize sinusoidal positional embedding.
+
+        Args:
+            dim: Embedding dimension.
+            base: Base for computing inverse frequencies. Defaults to 10000.0.
+        """
         super().__init__()
         self.dim = dim
         self.base = base
 
     def forward(self, positions: torch.Tensor, dtype: Optional[torch.dtype] = None) -> torch.Tensor:
-        # positions: [b, s]
+        """Compute sinusoidal positional embeddings.
+
+        Args:
+            positions: Position indices tensor of shape [batch, seq_len].
+            dtype: Optional output dtype. Defaults to float32.
+
+        Returns:
+            Positional embeddings of shape [batch, seq_len, dim].
+        """
         b, s = positions.shape
         device = positions.device
         dim = self.dim
@@ -338,6 +429,17 @@ class DeltaNetModel(nn.Module):
     """Complete DeltaNet model with token and position embeddings."""
 
     def __init__(self, vocab_size: int, hidden_size: int = 512, num_layers: int = 6, num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1):
+        """Initialize the DeltaNet language model.
+
+        Args:
+            vocab_size: Size of the vocabulary.
+            hidden_size: Dimension of the model hidden state. Defaults to 512.
+            num_layers: Number of transformer layers. Defaults to 6.
+            num_heads: Number of attention heads. Defaults to 8.
+            max_seq_len: Maximum sequence length for learned positional
+                embeddings. Defaults to 2048.
+            dropout: Dropout probability. Defaults to 0.1.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
@@ -363,12 +465,22 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize embedding parameters with normal distribution."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Perform forward pass through the model.
+
+        Args:
+            input_ids: Input token IDs of shape [batch, seq_len].
+            attention_mask: Optional mask of shape [batch, seq_len] where
+                1 indicates valid tokens and 0 indicates padding.
+
+        Returns:
+            Logits tensor of shape [batch, seq_len, vocab_size].
+        """
         b, s = input_ids.shape
-        # Positions
         pos_ids = torch.arange(s, device=input_ids.device).unsqueeze(0).expand(b, -1)
         # Positional embeddings: use learned up to max_seq_len; otherwise, use sinusoidal to adapt
         if s <= self.max_seq_len:
@@ -387,6 +499,12 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Generate a summary of the model architecture.
+
+        Returns:
+            A formatted string describing the model configuration
+            and parameter count.
+        """
         return f"""
 DeltaNet Architecture Summary (Evolved):
 - Model Type: Linear Attention Transformer with Normalized Associative Memory
@@ -402,6 +520,20 @@ DeltaNet Architecture Summary (Evolved):
 # Factory function for creating the model
 
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
+    """Create a DeltaNet model with default or custom configuration.
+
+    Args:
+        vocab_size: Size of the vocabulary. Defaults to 50257.
+        **kwargs: Override default configuration values. Supported keys:
+            hidden_size (int): Model hidden dimension. Defaults to 512.
+            num_layers (int): Number of transformer layers. Defaults to 6.
+            num_heads (int): Number of attention heads. Defaults to 8.
+            max_seq_len (int): Maximum sequence length. Defaults to 2048.
+            dropout (float): Dropout probability. Defaults to 0.1.
+
+    Returns:
+        An initialized DeltaNetModel instance.
+    """
     default_config = {
         'hidden_size': 512,
         'num_layers': 6,

@@ -15,6 +15,15 @@ from torch import distributed as dist
 
 
 def load_configs(args: argparse.Namespace) -> dict:
+    """Load configuration from a YAML file and merge with command-line arguments.
+
+    Args:
+        args: Parsed command-line arguments containing config_file path and
+            optional overrides.
+
+    Returns:
+        A dictionary containing the merged configuration values.
+    """
     with open(args.config_file, encoding='utf-8') as f:
         config_dict = yaml.safe_load(f)
     # Update config value with input args.
@@ -32,6 +41,20 @@ def compute_reconstruction_loss(
         inputs,
         reconstructions,
         recon_type='rgb'):
+    """Compute reconstruction loss between input and reconstructed images.
+
+    Args:
+        inputs: Original input tensor of shape (N, C, H, W).
+        reconstructions: Reconstructed tensor of shape (N, C, H, W).
+        recon_type: Type of reconstruction loss to compute. Either 'rgb' for
+            L1 loss in RGB space or 'yuv' for weighted MSE in YUV space.
+
+    Returns:
+        A tensor of shape (N,) containing the per-sample reconstruction loss.
+
+    Raises:
+        ValueError: If recon_type is not 'rgb' or 'yuv'.
+    """
     if recon_type == 'rgb':
         rec_loss = torch.abs(inputs - reconstructions).mean(dim=[1, 2, 3])
     elif recon_type == 'yuv':
@@ -48,6 +71,16 @@ def compute_reconstruction_loss(
 
 
 def uuid_to_bits(batch_size):
+    """Generate random UUIDs and convert them to bit representations.
+
+    Args:
+        batch_size: Number of UUIDs to generate.
+
+    Returns:
+        A tuple containing:
+            - bits: A float tensor of shape (batch_size, 128) with binary values.
+            - strs: A list of UUID strings.
+    """
     uid = [uuid.uuid4() for _ in range(batch_size)]
     seq = np.array([[n for n in u.bytes] for u in uid], dtype=np.uint8)
     bits = torch.Tensor(np.unpackbits(seq, axis=1)).to(torch.float32)
@@ -56,10 +89,27 @@ def uuid_to_bits(batch_size):
 
 
 def uuid_to_bytes(batch_size):
+    """Generate random UUIDs and return their byte representations.
+
+    Args:
+        batch_size: Number of UUIDs to generate.
+
+    Returns:
+        A list of 16-byte sequences representing random UUIDs.
+    """
     return [uuid.uuid4().bytes for _ in range(batch_size)]
 
 
 def bits_to_uuid(bits, threshold=0.5):
+    """Convert bit arrays back to UUID strings.
+
+    Args:
+        bits: Array of shape (N, 128) containing probability values.
+        threshold: Threshold for converting probabilities to binary bits.
+
+    Returns:
+        A list of UUID strings reconstructed from the bit arrays.
+    """
     bits = np.array(bits) >= threshold
     nums = np.packbits(bits.astype(np.int64), axis=-1)
     res = []
@@ -72,6 +122,16 @@ def bits_to_uuid(bits, threshold=0.5):
 
 
 def save_ckpt(model_state_dict, epoch, output_dir) -> None:
+    """Save a model checkpoint to disk.
+
+    Only saves when running on rank 0 in distributed training or when
+    distributed training is not initialized.
+
+    Args:
+        model_state_dict: The model's state dictionary to save.
+        epoch: Current epoch number, used in the checkpoint filename.
+        output_dir: Directory path where the checkpoint will be saved.
+    """
     if not dist.is_initialized() or dist.get_rank() == 0:
         save_state = {
             'model': model_state_dict,
@@ -82,6 +142,14 @@ def save_ckpt(model_state_dict, epoch, output_dir) -> None:
         logging.info(f"{save_path} ckpt saved!")
 
 def save_metrics(metrics, epoch, output_dir) -> None:
+    """Save training metrics to a JSON file.
+
+    Args:
+        metrics: Dictionary of metric names to values. Tensor values are
+            automatically converted to Python floats.
+        epoch: Current epoch number, used in the metrics filename.
+        output_dir: Directory path where the metrics file will be saved.
+    """
     # Convert tensor values to Python floats for JSON serialization
     serializable_metrics = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in metrics.items()}
     save_path = os.path.join(output_dir, f'metrics_{epoch}.json')
@@ -91,6 +159,15 @@ def save_metrics(metrics, epoch, output_dir) -> None:
 
 
 def output_all_metrics(output_dir) -> None:
+    """Load and display all saved metrics in a formatted table.
+
+    Reads all metrics JSON files from the output directory, aggregates them
+    by epoch, and prints a formatted table to console. Also saves the table
+    to a results.txt file.
+
+    Args:
+        output_dir: Directory path containing metrics JSON files.
+    """
     # Find all metrics JSON files
     metrics_files = sorted(glob.glob(os.path.join(output_dir, 'metrics_*.json')))
     if not metrics_files:

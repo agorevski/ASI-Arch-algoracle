@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class VideoDataset(Dataset):
+    """A PyTorch Dataset for loading video clips from a folder of MP4 files."""
+
     def __init__(
         self,
         folder_path: str,
@@ -29,6 +31,17 @@ class VideoDataset(Dataset):
         num_workers: int = 8,
         buffer_size: int = 15,
     ):
+        """Initialize the VideoDataset.
+
+        Args:
+            folder_path: Path to the folder containing video files organized
+                in subdirectories.
+            frames_per_clip: Number of frames to extract per video clip.
+            frame_step: Step size between consecutive frames within a clip.
+            transform: Optional transform to apply to each frame.
+            num_workers: Number of CPU threads for video decoding.
+            buffer_size: Maximum number of videos to keep in the LRU cache.
+        """
         self.frames_per_clip = frames_per_clip
         self.frame_step = frame_step
         self.transform = transform
@@ -39,6 +52,16 @@ class VideoDataset(Dataset):
         self.video_buffer = LRUDict(maxsize=buffer_size)
 
     def __getitem__(self, index):
+        """Get a video clip by index.
+
+        Args:
+            index: Index of the video file to load.
+
+        Returns:
+            A tuple of (clip, label) where clip is a tensor of shape
+            (frames_per_clip, channels, height, width) and label is 0.
+            If no transform is applied, returns the raw buffer tensor.
+        """
         video_file = self.videofiles[index]
         # Keep trying to load videos until you find a valid sample
         loaded_video = False
@@ -60,6 +83,15 @@ class VideoDataset(Dataset):
         return clip, 0
 
     def load_clip(self, fname):
+        """Load a video clip from a file.
+
+        Args:
+            fname: Path to the video file.
+
+        Returns:
+            A numpy array of shape (frames_per_clip, H, W, 3) with pixel values
+            normalized to [-1, 1], or an empty list if loading fails.
+        """
         if fname in self.video_buffer:
             vr = self.video_buffer[fname]
         else:
@@ -83,10 +115,22 @@ class VideoDataset(Dataset):
         return buffer
 
     def __len__(self):
+        """Return the total number of video files in the dataset."""
         return len(self.videofiles)
 
 
 def video_train_dataloader(video_path, batch_size, frame_step, num_workers=0):
+    """Create a DataLoader for video training with distributed sampling.
+
+    Args:
+        video_path: Path to the folder containing video files.
+        batch_size: Number of samples per batch.
+        frame_step: Step size between consecutive frames within a clip.
+        num_workers: Number of subprocesses for data loading.
+
+    Returns:
+        A DataLoader with DistributedSampler for training videos.
+    """
     dataset = VideoDataset(video_path, transform=transforms.Compose(
         [transforms.Resize((512, 512)), ]), frame_step=frame_step)
     return DataLoader(
@@ -101,6 +145,18 @@ def video_eval_dataloader(video_path,
                           frames_per_clip=24,
                           frame_step=1,
                           num_workers=0):
+    """Create a DataLoader for video evaluation with shuffling.
+
+    Args:
+        video_path: Path to the folder containing video files.
+        batch_size: Number of samples per batch.
+        frames_per_clip: Number of frames to extract per video clip.
+        frame_step: Step size between consecutive frames within a clip.
+        num_workers: Number of subprocesses for data loading.
+
+    Returns:
+        A shuffled DataLoader for evaluating videos.
+    """
     dataset = VideoDataset(
         video_path, frames_per_clip=frames_per_clip, frame_step=frame_step)
     return DataLoader(
@@ -111,6 +167,17 @@ def video_eval_dataloader(video_path,
 
 
 def img_train_dataloader(path, batch_size, num_workers=8):
+    """Create a DataLoader for image training with distributed sampling.
+
+    Args:
+        path: Path to the image folder organized by class subdirectories.
+        batch_size: Number of samples per batch.
+        num_workers: Number of subprocesses for data loading.
+
+    Returns:
+        A DataLoader with DistributedSampler for training images.
+        Images are resized to 256x256 and normalized to [-1, 1].
+    """
     dataset = dset.ImageFolder(root=path, transform=transforms.Compose([
         transforms.Resize((256, 256)),
         # scale image pixels from [0, 255] to [0, 1] values
@@ -126,6 +193,17 @@ def img_train_dataloader(path, batch_size, num_workers=8):
 
 
 def img_eval_dataloader(path, batch_size, num_workers=8):
+    """Create a DataLoader for image evaluation with shuffling.
+
+    Args:
+        path: Path to the image folder organized by class subdirectories.
+        batch_size: Number of samples per batch.
+        num_workers: Number of subprocesses for data loading.
+
+    Returns:
+        A shuffled DataLoader for evaluating images.
+        Images are normalized to [-1, 1] without resizing.
+    """
     dataset = dset.ImageFolder(root=path, transform=transforms.Compose([
         transforms.ToTensor(),
         # scale image pixels from [0, 255] to [0, 1] values
@@ -139,12 +217,25 @@ def img_eval_dataloader(path, batch_size, num_workers=8):
 
 
 class LRUDict(OrderedDict):
+    """A thread-safe Least Recently Used (LRU) dictionary with a maximum size."""
+
     def __init__(self, maxsize=10):
+        """Initialize the LRUDict.
+
+        Args:
+            maxsize: Maximum number of items to store before evicting LRU items.
+        """
         super().__init__()
         self.maxsize = maxsize
         self.lock = threading.RLock()  # Use a reentrant lock to avoid deadlocks
 
     def __setitem__(self, key, value):
+        """Set an item in the dictionary, evicting LRU items if necessary.
+
+        Args:
+            key: The key to set.
+            value: The value to associate with the key.
+        """
         with self.lock:
             # Insert the item in the dictionary
             super().__setitem__(key, value)
@@ -154,16 +245,39 @@ class LRUDict(OrderedDict):
                 self._cleanup()
 
     def __getitem__(self, key):
+        """Get an item from the dictionary.
+
+        Args:
+            key: The key to retrieve.
+
+        Returns:
+            The value associated with the key.
+
+        Raises:
+            KeyError: If the key is not found in the dictionary.
+        """
         with self.lock:
             value = super().__getitem__(key)
             # Move the accessed item to the end to mark it as recently used
             return value
 
     def __delitem__(self, key):
+        """Delete an item from the dictionary.
+
+        Args:
+            key: The key to delete.
+
+        Raises:
+            KeyError: If the key is not found in the dictionary.
+        """
         with self.lock:
             super().__delitem__(key)
 
     def _cleanup(self):
+        """Remove least recently used items to stay within the size limit.
+
+        Clears 10% of the max size or at least 1 item.
+        """
         # Remove the least recently used items until we're back under the limit
         # Clear 10% or at least 1
         num_to_clear = max(1, int(0.1 * self.maxsize))

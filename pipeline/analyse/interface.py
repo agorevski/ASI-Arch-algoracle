@@ -20,7 +20,16 @@ from config_loader import Config
 
 
 def extract_original_name(timestamped_name: str) -> str:
-    """Extract original name from timestamped name."""
+    """Extract original name from timestamped name.
+
+    Removes the timestamp prefix (format: YYYYMMDD-HH:MM:SS-) from the name.
+
+    Args:
+        timestamped_name: The name with a timestamp prefix.
+
+    Returns:
+        The original name with the timestamp prefix removed.
+    """
     # Remove timestamp prefix (format: YYYYMMDD-HH:MM:SS-)
     timestamp_pattern = r'^\d{8}-\d{2}:\d{2}:\d{2}-'
     original_name = re.sub(timestamp_pattern, '', timestamped_name)
@@ -35,12 +44,26 @@ async def analyse(
     result_file_path_test: str = Config.RESULT_FILE_TEST,
     parent: int = None
 ) -> DataElement:
+    """Analyze experiment results and generate comprehensive analysis.
 
+    Reads program and result files, retrieves reference elements from the database,
+    runs the analyzer agent, and returns a DataElement with the analysis results.
+
+    Args:
+        name: The timestamped name of the experiment.
+        motivation: The motivation or hypothesis behind the experiment.
+        program_file_path: Path to the source program file. Defaults to Config.SOURCE_FILE.
+        result_file_path: Path to the training results CSV file. Defaults to Config.RESULT_FILE.
+        result_file_path_test: Path to the test results CSV file. Defaults to Config.RESULT_FILE_TEST.
+        parent: The index of the parent experiment in the database, or None.
+
+    Returns:
+        A DataElement containing the analysis results, program content,
+        and associated metadata.
+    """
     data_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', name, 'named-outputs', 'output_folder')
     result_file_path = os.path.join(data_folder_path, result_file_path)
     result_file_path_test = os.path.join(data_folder_path, result_file_path_test)
-
-    """Analyze experiment results and generate comprehensive analysis."""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Extract original name (remove timestamp)
@@ -108,7 +131,14 @@ async def analyse(
 
 
 def _read_program_file(file_path: str) -> str:
-    """Read program file content with error handling."""
+    """Read program file content with error handling.
+
+    Args:
+        file_path: Path to the program file to read.
+
+    Returns:
+        The file content as a string, or an error message if reading fails.
+    """
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
@@ -119,7 +149,14 @@ def _read_program_file(file_path: str) -> str:
 
 
 def _read_csv_file(file_path: str) -> str:
-    """Read CSV file content with error handling."""
+    """Read CSV file content with error handling.
+
+    Args:
+        file_path: Path to the CSV file to read.
+
+    Returns:
+        The CSV content as a newline-separated string, or an error message if reading fails.
+    """
     try:
         result_lines = []
         with open(file_path, 'r', encoding='utf-8', newline='') as f:
@@ -134,7 +171,17 @@ def _read_csv_file(file_path: str) -> str:
 
 
 def increment(result: dict, timestamped_name: str, original_name: str, key: str) -> None:
-    """Extract corresponding timestamped_name row from CSV, but replace with original_name."""
+    """Extract corresponding timestamped_name row from CSV, but replace with original_name.
+
+    Searches the CSV data for a row matching the timestamped name, replaces the
+    name with the original name, and updates the result dictionary in place.
+
+    Args:
+        result: Dictionary containing CSV data keyed by 'train' or 'test'.
+        timestamped_name: The timestamped experiment name to search for.
+        original_name: The original name to replace the timestamped name with.
+        key: The key in the result dictionary ('train' or 'test').
+    """
     csv_data = result[key]
     string_io = io.StringIO(csv_data)
     reader = csv.reader(string_io)
@@ -168,7 +215,21 @@ async def run_analyzer(
     motivation: str,
     ref_elements: dict
 ) -> Optional[Any]:
-    """Run analyzer with retry mechanism."""
+    """Run analyzer with retry mechanism.
+
+    Attempts to run the analyzer agent up to MAX_RETRY_ATTEMPTS times,
+    handling exceptions and logging errors on each failed attempt.
+
+    Args:
+        name: The name of the experiment being analyzed.
+        result_content: Formatted string containing training and test results.
+        motivation: The motivation or hypothesis behind the experiment.
+        ref_elements: Dictionary containing reference experiment elements
+            (direct_parent, strongest_siblings, grandparent).
+
+    Returns:
+        The analyzer's final output if successful, or None if all attempts fail.
+    """
     ref_context = _build_reference_context(ref_elements)
 
     for attempt in range(Config.MAX_RETRY_ATTEMPTS):
@@ -191,7 +252,18 @@ async def run_analyzer(
 
 
 def _build_reference_context(ref_elements: dict) -> str:
-    """Build reference context string from reference elements."""
+    """Build reference context string from reference elements.
+
+    Constructs a formatted markdown string containing information about
+    direct parent, strongest siblings, and grandparent experiments.
+
+    Args:
+        ref_elements: Dictionary containing reference experiment data with keys
+            'direct_parent', 'strongest_siblings', and 'grandparent'.
+
+    Returns:
+        A formatted markdown string with reference experiment context.
+    """
     ref_context = "# Reference Experiments\n"
 
     if ref_elements.get("direct_parent"):
@@ -214,7 +286,17 @@ def _build_reference_context(ref_elements: dict) -> str:
 
 
 def _ref_elements_context(ref_element: DataElement) -> str:
-    """Generate context string for a reference element."""
+    """Generate context string for a reference element.
+
+    Creates a formatted markdown string containing the experiment name,
+    motivation, and results for a single reference element.
+
+    Args:
+        ref_element: A DataElement containing the reference experiment data.
+
+    Returns:
+        A formatted markdown string with the reference experiment details.
+    """
     return f"""### Reference Experiment {ref_element.name}
 #### Experiment Motivation
 {ref_element.motivation}
@@ -225,7 +307,14 @@ def _ref_elements_context(ref_element: DataElement) -> str:
 
 
 def save(name: str) -> None:
-    """Save source file content to code pool with given name."""
+    """Save source file content to code pool with given name.
+
+    Reads the source file from Config.SOURCE_FILE and writes it to the
+    code pool directory with the specified name.
+
+    Args:
+        name: The name to use for the saved file (without .py extension).
+    """
     with open(Config.SOURCE_FILE, "r", encoding='utf-8') as f:
         content = f.read()
     with open(f"{Config.CODE_POOL}/{name}.py", "w", encoding='utf-8') as f:

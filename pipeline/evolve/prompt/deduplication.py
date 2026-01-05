@@ -5,6 +5,22 @@ from config_loader import Config
 
 
 def Deduplication_input(context: str, repeated_motivation: str) -> str:
+    """Generate a prompt for neural architecture innovation diversification.
+
+    Creates a formatted prompt that guides the generation of breakthrough
+    architectural code by analyzing repeated design patterns and identifying
+    orthogonal directions for innovation.
+
+    Args:
+        context: Historical context and experimental insights to inform
+            the diversification process.
+        repeated_motivation: The repeated design pattern or motivation
+            that should be differentiated from.
+
+    Returns:
+        A formatted string prompt containing the task overview, repeated
+        pattern analysis, and innovation diversifier framework.
+    """
     return f"""
 # Neural Architecture Innovation Diversification Task
 

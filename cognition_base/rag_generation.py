@@ -22,16 +22,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname
 
 
 def extract_text_and_images_from_pdf(pdf_path: str) -> Tuple[str, List[Dict]]:
-    """
-    Extract text, images, and metadata from a PDF file using PyMuPDF.
+    """Extract text, images, and metadata from a PDF file using PyMuPDF.
 
     Args:
-        pdf_path: Path to the PDF file
+        pdf_path: Path to the PDF file.
 
     Returns:
-        Tuple of (full_text, page_metadata_list)
-        - full_text: Complete text extracted from the PDF
-        - page_metadata_list: List of dicts with page numbers, text, and images per page
+        Tuple[str, List[Dict]]: A tuple containing:
+            - full_text: Complete text extracted from the PDF.
+            - page_metadata_list: List of dicts with page numbers, text, and images per page.
     """
     try:
         doc = fitz.open(pdf_path)
@@ -139,14 +138,13 @@ def extract_text_and_images_from_pdf(pdf_path: str) -> Tuple[str, List[Dict]]:
 
 
 def clean_text(text: str) -> str:
-    """
-    Clean and preprocess extracted text.
+    """Clean and preprocess extracted text.
 
     Args:
-        text: Raw text from PDF
+        text: Raw text from PDF.
 
     Returns:
-        Cleaned text
+        str: Cleaned text with normalized whitespace and removed headers/footers.
     """
     # Remove excessive whitespace
     text = re.sub(r'\s+', ' ', text)
@@ -164,17 +162,16 @@ def clean_text(text: str) -> str:
 
 
 def generate_field_content(client: AzureOpenAI, paper_text: str, field_name: str, page_metadata: List[Dict]) -> Optional[str]:
-    """
-    Generate content for a specific field using Azure OpenAI with vision support.
+    """Generate content for a specific field using Azure OpenAI with vision support.
 
     Args:
-        client: Azure OpenAI client
-        paper_text: Full text of the research paper
-        field_name: Name of the field to generate
-        page_metadata: List of page metadata including images
+        client: Azure OpenAI client.
+        paper_text: Full text of the research paper.
+        field_name: Name of the field to generate.
+        page_metadata: List of page metadata including images.
 
     Returns:
-        Generated field content as string, or None if generation fails
+        Optional[str]: Generated field content as string, or None if generation fails.
     """
 
     field_description = get_field_description(field_name)
@@ -254,14 +251,13 @@ Analyze both the text and the images provided to extract comprehensive technical
 
 
 def create_json_output(fields: Dict[str, str]) -> List[Dict]:
-    """
-    Create the final JSON output structure.
+    """Create the final JSON output structure.
 
     Args:
-        fields: Dictionary mapping field names to their generated content
+        fields: Dictionary mapping field names to their generated content.
 
     Returns:
-        List containing a single dictionary with all fields
+        List[Dict]: List containing a single dictionary with all fields.
     """
     output = [{
         "DESIGN_INSIGHT": fields.get("DESIGN_INSIGHT", ""),
@@ -275,16 +271,15 @@ def create_json_output(fields: Dict[str, str]) -> List[Dict]:
 
 
 def process_single_paper(client: AzureOpenAI, paper_path: str, output_folder: str) -> bool:
-    """
-    Process a single research paper and generate JSON output.
+    """Process a single research paper and generate JSON output.
 
     Args:
-        client: Azure OpenAI client
-        paper_path: Path to the PDF file
-        output_folder: Directory to save output JSON
+        client: Azure OpenAI client.
+        paper_path: Path to the PDF file.
+        output_folder: Directory to save output JSON.
 
     Returns:
-        True if processing succeeded, False otherwise
+        bool: True if processing succeeded, False otherwise.
     """
     paper_filename = os.path.basename(paper_path)
     paper_name = os.path.splitext(paper_filename)[0]
@@ -366,13 +361,15 @@ def process_single_paper(client: AzureOpenAI, paper_path: str, output_folder: st
         return False
 
 
-def process_papers(input_folder, output_folder):
-    """
-    Process research papers from input folder and generate cognition base JSON files.
+def process_papers(input_folder: str, output_folder: str) -> None:
+    """Process research papers from input folder and generate cognition base JSON files.
 
     Args:
-    input_folder (str): Path to folder containing research papers (PDF/HTML)
-    output_folder (str): Path to output folder for generated JSON files
+        input_folder: Path to folder containing research papers (PDF files).
+        output_folder: Path to output folder where JSON files will be saved.
+
+    Returns:
+        None
     """
     # Validate input folder exists
     if not os.path.exists(input_folder):
@@ -428,6 +425,11 @@ def process_papers(input_folder, output_folder):
 
 
 def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments for the RAG generation script.
+
+    Returns:
+        argparse.Namespace: Parsed arguments containing input_folder and output_folder.
+    """
     parser = argparse.ArgumentParser(description="Generate structured JSON outputs for research paper analysis using RAG metaprompts")
     parser.add_argument('--input_folder', '-i', required=True, type=str, help='Path to folder containing research papers (PDF or HTML files)')
     parser.add_argument('--output_folder', '-o', required=True, type=str, help='Path to output folder where JSON files will be saved')

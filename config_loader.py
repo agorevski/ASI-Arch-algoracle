@@ -27,7 +27,16 @@ class ConfigLoader:
         self._process_dynamic_values()
 
     def _load_config(self) -> None:
-        """Load and combine configuration from both YAML files."""
+        """Load and combine configuration from YAML files.
+
+        Loads agents, pipeline, and AML configuration files, then combines
+        them into a single configuration dictionary. Also loads architecture-
+        specific agent configuration.
+
+        Raises:
+            FileNotFoundError: If any configuration file is not found.
+            ValueError: If any configuration file is empty.
+        """
         # Load agents configuration
         if not self.agents_config_path.exists():
             raise FileNotFoundError(f"Agents configuration file not found: {self.agents_config_path}")
@@ -70,7 +79,11 @@ class ConfigLoader:
         self._config = {**agents_config, **pipeline_config, **aml_config, **agent_yaml}
 
     def _process_dynamic_values(self) -> None:
-        """Process dynamic configuration values that depend on other values."""
+        """Process dynamic configuration values that depend on other values.
+
+        Constructs derived configuration values from existing ones. Currently
+        handles SOURCE_FILE construction from CODE_POOL if not explicitly set.
+        """
         # Construct SOURCE_FILE from CODE_POOL if not explicitly set
         if 'SOURCE_FILE' not in self._config and 'CODE_POOL' in self._config:
             code_pool = self._config['CODE_POOL']
@@ -114,14 +127,28 @@ class ConfigLoader:
         return self._config.get(key, default)
 
     def reload(self) -> None:
-        """Reload configuration from the YAML file."""
+        """Reload configuration from the YAML files.
+
+        Re-reads all configuration files and reprocesses dynamic values.
+        Useful when configuration files have been modified at runtime.
+        """
         self._load_config()
         self._process_dynamic_values()
 
     def __repr__(self) -> str:
+        """Return a string representation of the ConfigLoader.
+
+        Returns:
+            A string showing the ConfigLoader class with its config file paths.
+        """
         return f"ConfigLoader(agents='{self.agents_config_path}', model='{self.model_config_path}')"
 
     def __str__(self) -> str:
+        """Return a human-readable string representation.
+
+        Returns:
+            A descriptive string with config paths and number of settings.
+        """
         return f"ConfigLoader using {self.agents_config_path} and {self.model_config_path} with {len(self._config)} settings"
 
     def load_agent(self, agent_name: str) -> Dict[str, Any]:

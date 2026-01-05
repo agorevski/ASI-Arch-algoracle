@@ -1,7 +1,23 @@
 def Analyzer_input(name: str, result: str, motivation: str, ref_context: str) -> str:
-    """
-    Creates a comprehensive prompt for experiment results analysis with emphasis
-    on balanced assessment and critical analysis of architectural modifications.
+    """Creates a comprehensive prompt for experiment results analysis.
+
+    Generates a detailed analysis prompt with emphasis on balanced assessment
+    and critical analysis of architectural modifications, including ablation
+    study requirements and theoretical explanation guidelines.
+
+    Args:
+        name: The model name or identifier for the experiment.
+        result: Path or reference to the results data file.
+        motivation: Description of the design motivation and expected outcomes.
+        ref_context: Related experiments context for ablation study comparison,
+            including parent nodes (previous iterations) and sibling nodes
+            (alternative approaches).
+
+    Returns:
+        A formatted prompt string containing analysis requirements for:
+        motivation evaluation, experimental results with ablation study,
+        expectation vs reality comparison, theoretical explanation, and
+        synthesis of insights.
     """
     return f"""# Analysis Request: Model {name}
 

@@ -7,6 +7,16 @@ from config_loader import Config
 
 
 class ModelJudgementOutput(BaseModel):
+    """Output model for model judgement evaluation results.
+
+    Attributes:
+        performance_score: Score evaluating the model's performance.
+        innovation_score: Score evaluating the model's innovation.
+        complexity_score: Score evaluating the model's complexity.
+        weighted_final_score: Final weighted score combining all metrics.
+        judgement_reason: Explanation for the judgement scores.
+    """
+
     performance_score: int
     innovation_score: int
     complexity_score: int

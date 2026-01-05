@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 
 class WatermarkLoss(nn.Module):
     def __init__(self, cfg):
+        """Initialize the WatermarkLoss module.
+
+        Args:
+            cfg: Configuration dictionary containing loss parameters including
+                'beta_start_epoch', 'beta_epochs', 'beta_min', 'beta_max',
+                and 'noise_start_epoch'.
+        """
         super(WatermarkLoss, self).__init__()
         self.cfg = cfg
         # lpips: image should be RGB, IMPORTANT: normalized to [-1,1]
@@ -25,6 +32,17 @@ class WatermarkLoss(nn.Module):
         self.train_bit_accuracy = defaultdict(float)
 
     def _beta_coef(self, epoch):
+        """Calculate the beta coefficient for the current epoch.
+
+        Uses a logarithmic schedule to interpolate between beta_min and beta_max
+        based on the current epoch relative to the beta start epoch.
+
+        Args:
+            epoch: Current training epoch.
+
+        Returns:
+            float: The beta coefficient value for weighting the reconstruction loss.
+        """
         cur_epoch = min(max(0, epoch - self.cfg['beta_start_epoch']),
                         self.cfg['beta_epochs'] - 1)
         # schedule = np.linspace(
@@ -34,6 +52,25 @@ class WatermarkLoss(nn.Module):
         return schedule[cur_epoch]
 
     def forward(self, out, secret, epoch):
+        """Compute the total watermarking loss.
+
+        Combines reconstruction losses (MSE, LPIPS, FFL) with watermark decoding
+        loss (BCE). After the noise start epoch, applies difficulty-weighted BCE
+        loss to focus training on problematic bits.
+
+        Args:
+            out: Dictionary containing model outputs with keys:
+                - 'resized_inputs': Original input images.
+                - 'resized_outputs': Watermarked output images.
+                - 'decode_wm': Decoded watermark from clean images.
+                - 'decode_wm_noise': Decoded watermark from noised images.
+            secret: Ground truth watermark tensor.
+            epoch: Current training epoch.
+
+        Returns:
+            torch.Tensor: Total weighted loss combining reconstruction and
+                decoding losses.
+        """
         # Repeat the secret to match the batch size
         secret = secret.repeat(
             out['resized_outputs'].shape[0] // secret.shape[0], 1)

@@ -28,7 +28,37 @@ logger = logging.getLogger(__name__)
 
 
 class WatermarkTrainer(nn.Module):
+    """Trainer class for watermark embedding and extraction models.
+
+    Handles distributed training, evaluation, and metric logging for
+    the InvisMark watermarking model on both image and video data.
+
+    Attributes:
+        device: Local GPU device rank.
+        cfg: Configuration dictionary loaded from config files.
+        model: DistributedDataParallel wrapped InvisMark model.
+        opt: AdamW optimizer for model parameters.
+        loss: WatermarkLoss instance for computing training loss.
+        noiser: Noiser instance for applying noise transformations.
+        output_dir: Directory for saving checkpoints and metrics.
+        eval_interval: Number of epochs between evaluations.
+    """
+
     def __init__(self, args):
+        """Initializes the WatermarkTrainer with configuration and data loaders.
+
+        Args:
+            args: Namespace containing training arguments including:
+                - lr: Learning rate for optimizer.
+                - output_dir: Directory for outputs.
+                - eval_interval: Epochs between evaluations.
+                - dataset_path: Base path for datasets.
+                - batch_size: Training batch size.
+                - video_train_path: Path to video training data.
+                - video_test_path: Path to video test data.
+                - img_train_path: Path to image training data.
+                - img_test_path: Comma-separated paths to image test data.
+        """
         super().__init__()
         self.device = int(os.environ["LOCAL_RANK"])
         self.cfg = utils.load_configs(args)
@@ -62,6 +92,12 @@ class WatermarkTrainer(nn.Module):
                 self.eval_dataloader_list[eval_data] = eval_dataloader
 
     def train(self):
+        """Runs the full training loop for the configured number of epochs.
+
+        Performs warmup training with a fixed batch, followed by regular
+        training. Evaluates at configured intervals and saves checkpoints
+        after each epoch.
+        """
         fixed_batch = next(iter(self.train_dataloader))
         for epoch in range(self.cfg['num_epochs']):
             if epoch < self.cfg['warmup_epochs']:
@@ -85,6 +121,14 @@ class WatermarkTrainer(nn.Module):
         utils.output_all_metrics(self.output_dir)
 
     def _train_one_epoch(self, epoch, fixed_batch=None):
+        """Trains the model for one epoch.
+
+        Args:
+            epoch: Current epoch number.
+            fixed_batch: Optional fixed batch for warmup training. If provided,
+                uses this batch for all steps instead of iterating through
+                the dataloader.
+        """
         self.model.train()
         for step, batch in enumerate(self.train_dataloader):
             self.opt.zero_grad()
@@ -105,6 +149,18 @@ class WatermarkTrainer(nn.Module):
             self.opt.step()
 
     def _generate_wm(self, batch_size):
+        """Generates watermark bit arrays for a batch.
+
+        Args:
+            batch_size: Number of watermarks to generate.
+
+        Returns:
+            Tensor of shape (batch_size, NUM_BITS) containing binary watermark
+            data on the configured device.
+
+        Raises:
+            Exception: If enc_mode is not 'uuid' or 'ecc'.
+        """
         if self.cfg['WATERMARK']['ECC_MODE'] == "uuid":
             bits, _ = utils.uuid_to_bits(batch_size)
         elif self.cfg['WATERMARK']['ECC_MODE'] == "ecc":
@@ -116,6 +172,26 @@ class WatermarkTrainer(nn.Module):
 
     @torch.no_grad()
     def _calculate_metric(self, imgs, wm_imgs, wm):
+        """Calculates evaluation metrics for watermarked images.
+
+        Computes PSNR, SSIM, and bit accuracy metrics. Also evaluates
+        robustness by applying various noise transformations and measuring
+        bit accuracy after each.
+
+        Args:
+            imgs: Original images tensor of shape (B, C, H, W).
+            wm_imgs: Watermarked images tensor of shape (B, C, H, W).
+            wm: Watermark bits tensor of shape (B, NUM_BITS).
+
+        Returns:
+            Dictionary mapping metric names to their values, including:
+                - psnr: Peak signal-to-noise ratio.
+                - ssim: Structural similarity index.
+                - BitAcc: Bit accuracy without noise.
+                - BitAcc-{transform}: Bit accuracy after each noise transform.
+                - DataBitAcc-{transform}: Data bit accuracy (ECC mode only).
+                - decode_errors: Number of decode errors (ECC mode only).
+        """
         metric = defaultdict(float)
         wm = wm.repeat(imgs.shape[0] // wm.shape[0], 1)
 
@@ -165,6 +241,16 @@ class WatermarkTrainer(nn.Module):
 
     @torch.inference_mode()
     def _evaluate(self, epoch, output_dir, num_batches=50) -> None:
+        """Evaluates the model on image test datasets.
+
+        Runs distributed evaluation across GPUs, aggregates metrics,
+        and logs results to MLflow.
+
+        Args:
+            epoch: Current epoch number for logging.
+            output_dir: Directory to save metric files.
+            num_batches: Maximum number of batches to evaluate per dataset.
+        """
         logger.info(f"Starting evaluation for epoch {epoch} ...")
         self.model.eval()
         world_size = dist.get_world_size() if dist.is_initialized() else 1
@@ -221,6 +307,15 @@ class WatermarkTrainer(nn.Module):
 
     @torch.inference_mode()
     def _evaluate_video(self, epoch, num_batches=5):
+        """Evaluates the model on video test data.
+
+        Applies watermark residuals from key frames to all frames and
+        measures reconstruction quality and bit accuracy.
+
+        Args:
+            epoch: Current epoch number for logging.
+            num_batches: Maximum number of video batches to evaluate.
+        """
         self.model.eval()
         world_size = dist.get_world_size() if dist.is_initialized() else 1
         rank = dist.get_rank() if dist.is_initialized() else 0
@@ -265,7 +360,15 @@ class WatermarkTrainer(nn.Module):
             self._log_images(last_imgs, last_wm_imgs, epoch, "Eval")
 
     def _aggregate_metrics(self, local_metrics, batch_count):
-        """Aggregate metrics across all GPUs using distributed reduction."""
+        """Aggregates metrics across all GPUs using distributed reduction.
+
+        Args:
+            local_metrics: Dictionary of metric sums from the local GPU.
+            batch_count: Number of batches processed on the local GPU.
+
+        Returns:
+            Dictionary of averaged metrics across all GPUs.
+        """
         if not dist.is_initialized():
             # Single GPU case - just compute averages locally
             avg_metrics = {}
@@ -296,6 +399,13 @@ class WatermarkTrainer(nn.Module):
         return avg_metrics
 
     def _log_metrics(self, metrics, epoch, prefix='Eval'):
+        """Logs metrics to MLflow.
+
+        Args:
+            metrics: Dictionary of metric names to values.
+            epoch: Current epoch number for the x-axis.
+            prefix: String prefix for metric names in MLflow.
+        """
         for key in metrics:
             try:
                 mlflow.log_metric(f"{prefix}/{key}", metrics[key].item(), epoch)
@@ -303,6 +413,18 @@ class WatermarkTrainer(nn.Module):
                 logger.error(f"Error while logging to AML: {e}")
 
     def _log_images(self, imgs, wm_imgs, epoch, prefix='Eval', num_samples=1):
+        """Logs sample images to MLflow.
+
+        Logs original images, watermarked images, and amplified residuals
+        (difference between original and watermarked, scaled 20x).
+
+        Args:
+            imgs: Original images tensor of shape (N, C, H, W).
+            wm_imgs: Watermarked images tensor of shape (N, C, H, W).
+            epoch: Current epoch number for filename.
+            prefix: String prefix for filenames in MLflow.
+            num_samples: Number of samples to log from the batch.
+        """
         for i in range(num_samples):
             try:
                 img = transforms.ToPILImage()(
@@ -318,6 +440,13 @@ class WatermarkTrainer(nn.Module):
                 logger.error(f"Error while logging images to AML: {e}")
 
     def save_metrics(self, metrics, epoch, output_dir) -> None:
+        """Saves metrics to a JSON file.
+
+        Args:
+            metrics: Dictionary of metric names to values (may contain tensors).
+            epoch: Current epoch number for filename.
+            output_dir: Directory to save the metrics file.
+        """
         # Convert tensor values to Python floats for JSON serialization
         serializable_metrics = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in metrics.items()}
         save_path = os.path.join(output_dir, f'metrics_{epoch}.json')

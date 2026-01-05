@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 def parse_option():
+    """Parse command line arguments for watermark training.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments containing configuration
+            options for training, including paths, hyperparameters, and scheduling.
+    """
     parser = ArgumentParser('Image and Video watermarking', add_help=False)
     parser.add_argument('--config_file', type=str, default='configs/config.yaml', help='Model config file path')
     parser.add_argument('--dataset_path', type=str, help="Path to the local / AML dataset")
@@ -41,6 +47,12 @@ def parse_option():
 
 @record
 def main():
+    """Entry point for distributed watermark training.
+
+    Initializes distributed training environment, parses arguments,
+    creates the WatermarkTrainer, and runs the training loop.
+    Cleans up the process group on completion.
+    """
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     dist.init_process_group("nccl")
     torch.manual_seed(dist.get_rank())

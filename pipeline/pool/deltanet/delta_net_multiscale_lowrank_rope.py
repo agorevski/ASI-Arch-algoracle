@@ -26,16 +26,36 @@ from einops import rearrange
 # -----------------------------
 
 def _logit(p: float) -> float:
+    """Compute the logit (inverse sigmoid) of a probability.
+
+    Args:
+        p: Probability value to convert, will be clamped to (1e-6, 1-1e-6).
+
+    Returns:
+        The logit value log(p / (1 - p)).
+    """
     p = min(max(p, 1e-6), 1.0 - 1e-6)
     return math.log(p / (1.0 - p))
 
 
 def _get_rope_cos_sin(seq_len: int, dim: int, device: torch.device, dtype: torch.dtype, base: float = 10000.0):
-    """
-    Compute RoPE cos/sin matrices for last-dim rotations. dim is head_dim.
-    Returns cos, sin with shapes [seq_len, dim_rot] where dim_rot = dim // 2.
-    Performs the internal trig computations in float32 for numerical stability and CPU compatibility,
-    then casts to the requested dtype.
+    """Compute RoPE cos/sin matrices for last-dim rotations.
+
+    Performs the internal trig computations in float32 for numerical stability
+    and CPU compatibility, then casts to the requested dtype.
+
+    Args:
+        seq_len: Sequence length T.
+        dim: Head dimension (head_dim).
+        device: Torch device for the output tensors.
+        dtype: Torch dtype for the output tensors.
+        base: Base frequency for positional encoding. Defaults to 10000.0.
+
+    Returns:
+        A tuple (cos, sin, dim_rot) where:
+            - cos: Cosine values with shape [seq_len, dim_rot // 2].
+            - sin: Sine values with shape [seq_len, dim_rot // 2].
+            - dim_rot: Number of dimensions that will be rotated (even number <= dim).
     """
     dim_rot = (dim // 2) * 2
     half_dim = dim_rot // 2
@@ -55,10 +75,19 @@ def _get_rope_cos_sin(seq_len: int, dim: int, device: torch.device, dtype: torch
 
 
 def _apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor, dim_rot: int) -> torch.Tensor:
-    """
-    Apply RoPE to the last dimension of x with shape [..., D].
-    cos, sin shapes: [T, half_dim]; x shape expected [B, T, H, D].
-    Only the first dim_rot dims (even) are rotated; remaining dims are left unchanged.
+    """Apply Rotary Position Embedding (RoPE) to the last dimension of x.
+
+    Only the first dim_rot dimensions (even-indexed pairs) are rotated;
+    remaining dimensions are left unchanged.
+
+    Args:
+        x: Input tensor with shape [B, T, H, D].
+        cos: Cosine values with shape [T, half_dim].
+        sin: Sine values with shape [T, half_dim].
+        dim_rot: Number of dimensions to rotate (must be even).
+
+    Returns:
+        Tensor with same shape as x, with RoPE applied to the first dim_rot dimensions.
     """
     B, T, H, D = x.shape
     if dim_rot == 0:
@@ -146,6 +175,12 @@ class DeltaNet(nn.Module):
         self._compiled = False
 
     def _reset_parameters(self):
+        """Initialize all learnable parameters.
+
+        Uses Xavier uniform initialization for projection weights and sets
+        base decay logits for high retention (~0.98). Gate biases are
+        initialized to prefer small updates initially.
+        """
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -163,14 +198,33 @@ class DeltaNet(nn.Module):
 
     def _chunk_scan_impl(
         self,
-        q_r: torch.Tensor,  # [B, T_c, H, r]
-        k_r: torch.Tensor,  # [B, T_c, H, r]
-        v: torch.Tensor,    # [B, T_c, H, D]
-        g: torch.Tensor,    # [B, T_c, H, r] in [0,1]
-        base_decay: torch.Tensor,  # [H, r] in (0,1)
-        mask: Optional[torch.Tensor] = None,  # [B, T_c] or None
-        M_init: Optional[torch.Tensor] = None,  # [B, H, r, D] initial state or None
+        q_r: torch.Tensor,
+        k_r: torch.Tensor,
+        v: torch.Tensor,
+        g: torch.Tensor,
+        base_decay: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        M_init: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Perform chunked causal scan with low-rank associative memory.
+
+        Iterates through each timestep in the chunk, updating the memory state
+        with gated outer products and computing outputs via query-memory readout.
+
+        Args:
+            q_r: Low-rank query projections with shape [B, T_c, H, r].
+            k_r: Low-rank key projections with shape [B, T_c, H, r].
+            v: Value tensor with shape [B, T_c, H, D].
+            g: Update gates in [0, 1] with shape [B, T_c, H, r].
+            base_decay: Base retention decay in (0, 1) with shape [H, r].
+            mask: Optional mask with shape [B, T_c], 1 for valid, 0 for padding.
+            M_init: Optional initial memory state with shape [B, H, r, D].
+
+        Returns:
+            A tuple (Y, M) where:
+                - Y: Output tensor with shape [B, T_c, H, D].
+                - M: Final memory state with shape [B, H, r, D].
+        """
         B, T_c, H, r = q_r.shape
         D = v.shape[-1]
         # State per batch, head: [B, H, r, D]
@@ -211,6 +265,11 @@ class DeltaNet(nn.Module):
         return Y, M
 
     def _maybe_compile(self):
+        """Lazily compile the chunk scan implementation with torch.compile.
+
+        Attempts to compile _chunk_scan_impl for improved performance.
+        Fails silently if torch.compile is not available.
+        """
         if not self._compiled:
             try:
                 self._chunk_scan_impl = torch.compile(self._chunk_scan_impl, mode='default', fullgraph=False)
@@ -220,12 +279,18 @@ class DeltaNet(nn.Module):
             self._compiled = True
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
+        """Forward pass through the DeltaNet attention layer.
+
+        Applies multi-head low-rank linear attention with RoPE, content-gated
+        updates, multi-timescale retention, and chunked causal scanning.
+
         Args:
-            x: [batch, seq_len, hidden_size]
-            mask: Optional mask [batch, seq_len], 1 for valid tokens, 0 for padding
+            x: Input tensor with shape [batch, seq_len, hidden_size].
+            mask: Optional mask with shape [batch, seq_len], where 1 indicates
+                valid tokens and 0 indicates padding.
+
         Returns:
-            [batch, seq_len, hidden_size]
+            Output tensor with shape [batch, seq_len, hidden_size].
         """
         B, T, Hs = x.shape
         assert Hs == self.hidden_size
@@ -318,15 +383,17 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Forward pass through the complete block
+        """Forward pass through the complete DeltaNet transformer block.
+
+        Applies self-attention followed by a feed-forward network with
+        residual connections and layer normalization.
 
         Args:
-            x: Input tensor [batch, seq_len, hidden_size]
-            mask: Optional attention mask
+            x: Input tensor with shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask with shape [batch, seq_len].
 
         Returns:
-            Output tensor [batch, seq_len, hidden_size]
+            Output tensor with shape [batch, seq_len, hidden_size].
         """
         # Self-attention
         x = self.attention(x, mask)
@@ -370,20 +437,23 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initialize embedding weights with normal distribution (std=0.02)."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor,
                 attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Forward pass
+        """Forward pass through the complete DeltaNet model.
+
+        Computes token and position embeddings, applies transformer layers,
+        and projects to vocabulary logits.
 
         Args:
-            input_ids: Token IDs [batch, seq_len]
-            attention_mask: Optional attention mask [batch, seq_len]
+            input_ids: Token IDs with shape [batch, seq_len].
+            attention_mask: Optional attention mask with shape [batch, seq_len].
 
         Returns:
-            Logits [batch, seq_len, vocab_size]
+            Logits tensor with shape [batch, seq_len, vocab_size].
         """
         B, T = input_ids.shape
 
@@ -408,6 +478,12 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Generate a human-readable summary of the model architecture.
+
+        Returns:
+            A formatted string describing the model's configuration,
+            including hidden size, layers, heads, rank, and parameter count.
+        """
         return f"""
 DeltaNet Architecture Summary (Evolved):
 - Model Type: Low-Rank Linear Attention Transformer with RoPE
@@ -424,15 +500,16 @@ DeltaNet Architecture Summary (Evolved):
 
 # Factory function for creating the model
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
-    """
-    Create a DeltaNet model with default parameters
+    """Create a DeltaNet model with default parameters.
 
     Args:
-        vocab_size: Vocabulary size
-        **kwargs: Additional model parameters
+        vocab_size: Size of the vocabulary. Defaults to 50257.
+        **kwargs: Additional model parameters to override defaults.
+            Supported keys: hidden_size, num_layers, num_heads,
+            max_seq_len, dropout.
 
     Returns:
-        DeltaNetModel instance
+        A configured DeltaNetModel instance.
     """
     default_config = {
         'hidden_size': 512,

@@ -14,8 +14,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s-%(name)s-%(levelname
 
 
 def test_deltanet_training():
-    """Test that DeltaNet can be loaded and trained"""
+    """Test that DeltaNet can be loaded and trained.
 
+    Runs the DeltaNet training pipeline with minimal configuration
+    (10 steps, batch size 4, vocab size 100, sequence length 32) to verify
+    that the training infrastructure is working correctly.
+
+    Returns:
+        bool: True if training completed successfully and output files
+            were generated, False otherwise.
+
+    Raises:
+        Exception: Any exception during training is caught and logged,
+            returning False instead of propagating.
+    """
     logging.info("🧪 Testing DeltaNet training pipeline...")
     logging.info("=" * 50)
 
@@ -89,8 +101,17 @@ def test_deltanet_training():
 
 
 def main():
-    """Main test function"""
+    """Main entry point for the training pipeline test.
 
+    Orchestrates the testing process by:
+    1. Verifying that all required files exist (train.py, deltanet_base.py, config.py)
+    2. Running the DeltaNet training test
+    3. Reporting overall success or failure
+
+    Returns:
+        bool: True if all checks pass and training test succeeds,
+            False otherwise.
+    """
     logging.info("🔧 ASI-Arch Training Pipeline Test")
     logging.info("=" * 60)
 

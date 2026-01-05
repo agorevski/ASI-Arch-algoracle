@@ -10,11 +10,36 @@ from typing import Optional
 
 
 class DeltaRule(nn.Module):
+    """Delta rule computation module for linear attention.
+
+    Implements the core delta rule with forgetting mechanism that updates
+    an associative memory state based on key-value outer products.
+
+    Attributes:
+        hidden_size: Dimension of the hidden state.
+    """
+
     def __init__(self, hidden_size: int):
+        """Initializes DeltaRule with the given hidden size.
+
+        Args:
+            hidden_size: Dimension of the hidden state for each head.
+        """
         super().__init__()
         self.hidden_size = hidden_size
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, beta: torch.Tensor) -> torch.Tensor:
+        """Applies the delta rule to compute attention output.
+
+        Args:
+            q: Query tensor of shape [batch, seq_len, hidden_size].
+            k: Key tensor of shape [batch, seq_len, hidden_size].
+            v: Value tensor of shape [batch, seq_len, hidden_size].
+            beta: Forgetting factor of shape [batch, seq_len, 1].
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         batch_size, seq_len, hidden_size = q.shape
         # Initialize state
         h_t = torch.zeros(batch_size, hidden_size, hidden_size, device=q.device, dtype=q.dtype)
@@ -42,7 +67,28 @@ class DeltaRule(nn.Module):
 
 
 class DeltaNetLayer(nn.Module):
+    """Multi-head delta attention layer.
+
+    Implements multi-head attention using the delta rule with learnable
+    forgetting factors (beta) for each head.
+
+    Attributes:
+        hidden_size: Total hidden dimension.
+        num_heads: Number of attention heads.
+        head_dim: Dimension per attention head.
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, dropout: float = 0.1):
+        """Initializes DeltaNetLayer with given configuration.
+
+        Args:
+            hidden_size: Total hidden dimension. Must be divisible by num_heads.
+            num_heads: Number of attention heads.
+            dropout: Dropout probability.
+
+        Raises:
+            AssertionError: If hidden_size is not divisible by num_heads.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -63,6 +109,7 @@ class DeltaNetLayer(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initializes layer parameters with Xavier uniform distribution."""
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -72,6 +119,15 @@ class DeltaNetLayer(nn.Module):
         nn.init.constant_(self.beta_proj.bias, 0.9)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Applies multi-head delta attention to input.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask (currently unused).
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         batch_size, seq_len, hidden_size = x.shape
         # Store residual
         residual = x
@@ -106,7 +162,26 @@ class DeltaNetLayer(nn.Module):
 
 
 class DeltaNetBlock(nn.Module):
+    """Transformer block with delta attention and feed-forward network.
+
+    Combines a DeltaNetLayer with a two-layer feed-forward network,
+    both with residual connections and layer normalization.
+
+    Attributes:
+        attention: The delta attention layer.
+        ffn: The feed-forward network.
+        ffn_layer_norm: Layer normalization for FFN output.
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1):
+        """Initializes DeltaNetBlock with given configuration.
+
+        Args:
+            hidden_size: Total hidden dimension.
+            num_heads: Number of attention heads.
+            ffn_hidden_size: Hidden dimension of FFN. Defaults to 4 * hidden_size.
+            dropout: Dropout probability.
+        """
         super().__init__()
         if ffn_hidden_size is None:
             ffn_hidden_size = 4 * hidden_size
@@ -122,6 +197,15 @@ class DeltaNetBlock(nn.Module):
         self.ffn_layer_norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Applies attention and FFN to input.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask.
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         # Self-attention
         x = self.attention(x, mask)
         # Feed-forward with residual connection
@@ -132,7 +216,33 @@ class DeltaNetBlock(nn.Module):
 
 
 class DeltaNetModel(nn.Module):
+    """Complete DeltaNet language model.
+
+    A transformer-style language model using delta attention instead of
+    standard softmax attention. Includes token and position embeddings,
+    multiple DeltaNet blocks, and a language modeling head.
+
+    Attributes:
+        hidden_size: Hidden dimension of the model.
+        max_seq_len: Maximum sequence length supported.
+        token_embedding: Token embedding layer.
+        position_embedding: Position embedding layer.
+        layers: Stack of DeltaNetBlock layers.
+        layer_norm: Final layer normalization.
+        lm_head: Language modeling output projection.
+    """
+
     def __init__(self, vocab_size: int, hidden_size: int = 512, num_layers: int = 6, num_heads: int = 8, max_seq_len: int = 2048, dropout: float = 0.1):
+        """Initializes DeltaNetModel with given configuration.
+
+        Args:
+            vocab_size: Size of the vocabulary.
+            hidden_size: Hidden dimension of the model.
+            num_layers: Number of transformer blocks.
+            num_heads: Number of attention heads per layer.
+            max_seq_len: Maximum sequence length.
+            dropout: Dropout probability.
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
@@ -154,10 +264,20 @@ class DeltaNetModel(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initializes embedding parameters with normal distribution."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Computes language model logits for input token IDs.
+
+        Args:
+            input_ids: Input token IDs of shape [batch, seq_len].
+            attention_mask: Optional attention mask (currently unused).
+
+        Returns:
+            Logits tensor of shape [batch, seq_len, vocab_size].
+        """
         batch_size, seq_len = input_ids.shape
         # Create position IDs
         position_ids = torch.arange(seq_len, device=input_ids.device).unsqueeze(0)
@@ -176,6 +296,11 @@ class DeltaNetModel(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Returns a formatted summary of the model architecture.
+
+        Returns:
+            Multi-line string describing model configuration and parameters.
+        """
         return f"""
 DeltaNet Architecture Summary:
 - Model Type: Linear Attention Transformer
@@ -190,6 +315,20 @@ DeltaNet Architecture Summary:
 
 # Factory function for creating the model
 def create_model(vocab_size: int = 50257, **kwargs) -> DeltaNetModel:
+    """Factory function to create a DeltaNetModel with default configuration.
+
+    Args:
+        vocab_size: Size of the vocabulary. Defaults to 50257 (GPT-2).
+        **kwargs: Override default config values. Supported keys:
+            hidden_size (int): Hidden dimension. Default 512.
+            num_layers (int): Number of transformer blocks. Default 6.
+            num_heads (int): Number of attention heads. Default 8.
+            max_seq_len (int): Maximum sequence length. Default 2048.
+            dropout (float): Dropout probability. Default 0.1.
+
+    Returns:
+        Configured DeltaNetModel instance.
+    """
     default_config = {
         'hidden_size': 512,
         'num_layers': 6,

@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 def parse_arguments() -> argparse.Namespace:
+    """Parse command-line arguments for the AML pipeline.
+
+    Returns:
+        argparse.Namespace: Parsed arguments containing model_name.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name',
                         type=str,
@@ -30,7 +35,11 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def configure_logging() -> None:
-    # Suppress noisy logs from azure, urllib3, msrest, etc.
+    """Configure logging levels to suppress noisy logs from Azure SDK and related libraries.
+
+    Suppresses verbose output from azure.core, urllib3, msrest, azure.identity,
+    and azure.ai.ml loggers.
+    """
     logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
     logging.getLogger("msrest.serialization").setLevel(logging.ERROR)
@@ -39,6 +48,15 @@ def configure_logging() -> None:
 
 
 def create_pipeline_job(component_inputs: Dict) -> object:
+    """Create an Azure ML pipeline job for training.
+
+    Args:
+        component_inputs: Dictionary containing pipeline inputs. Must include
+            'model_name' key with the name of the model to train.
+
+    Returns:
+        object: A configured Azure ML pipeline job ready for submission.
+    """
     @dsl.pipeline(display_name="ASI-Arch Training Job")
     def training_job_wrapper(model_name: str):
         run_lec_func = load_component(
@@ -49,6 +67,14 @@ def create_pipeline_job(component_inputs: Dict) -> object:
 
 
 def get_credential() -> TokenCredential:
+    """Obtain Azure credentials using DefaultAzureCredential.
+
+    Attempts to acquire a token for Azure management API to verify
+    the credential is valid.
+
+    Returns:
+        TokenCredential: Azure credential object if successful, None otherwise.
+    """
     log_key = "get_credential()"
     credential = None
     try:
@@ -70,6 +96,19 @@ def submit_job(
     stream_job: bool = True,
     tags: dict = None
 ) -> object:
+    """Submit an Azure ML pipeline job for execution.
+
+    Args:
+        ml_client: Azure ML client instance for job submission.
+        pipeline_job: The pipeline job object to submit.
+        cluster_name: Name of the compute cluster to run the job on.
+        experiment_name: Name of the experiment to associate with the job.
+        stream_job: If True, stream job logs to console. Defaults to True.
+        tags: Optional dictionary of tags to attach to the job.
+
+    Returns:
+        object: The submitted pipeline job object with updated status and metadata.
+    """
     pipeline_job.settings.default_compute = cluster_name
     pipeline_job.identity = UserIdentityConfiguration()
     pipeline_job = ml_client.jobs.create_or_update(job=pipeline_job, experiment_name=experiment_name, tags=tags)

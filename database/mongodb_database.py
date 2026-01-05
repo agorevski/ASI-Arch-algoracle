@@ -48,7 +48,16 @@ class MongoDatabase:
         self._setup_candidate_manager_callbacks()
 
     def _initialize_connection(self, username: str = None, password: str = None):
-        """Initializes the MongoDB connection"""
+        """Initializes the MongoDB connection.
+
+        Args:
+            username: MongoDB username for authentication.
+            password: MongoDB password for authentication.
+
+        Raises:
+            ConnectionFailure: If the MongoDB connection fails.
+            Exception: If MongoDB initialization fails for other reasons.
+        """
         try:
             # Build the connection string (if username and password are provided)
             if username and password:
@@ -95,7 +104,11 @@ class MongoDatabase:
             raise
 
     def _setup_candidate_manager_callbacks(self):
-        """Sets the database callback functions for the candidate manager"""
+        """Sets the database callback functions for the candidate manager.
+
+        Injects callbacks for getting elements by index and updating element
+        scores into the candidate manager.
+        """
         try:
             candidate_manager = get_candidate_manager()
             # Inject callbacks for getting elements and updating scores
@@ -108,7 +121,11 @@ class MongoDatabase:
             logging.warning(f"Failed to set candidate manager callbacks: {e}")
 
     def _create_indexes(self):
-        """Creates necessary indexes"""
+        """Creates necessary indexes for efficient querying.
+
+        Creates indexes on name, time, index, and parent fields, as well as
+        compound indexes for common query patterns.
+        """
         try:
             # Create index for the 'name' field (for fast queries)
             self.collection.create_index([("name", ASCENDING)])
@@ -133,7 +150,14 @@ class MongoDatabase:
             logging.warning(f"Failed to create indexes: {e}")
 
     def _validate_element(self, element: DataElement) -> bool:
-        """Validates a data element"""
+        """Validates a data element.
+
+        Args:
+            element: The DataElement to validate.
+
+        Returns:
+            True if the element is valid, False otherwise.
+        """
         if not element.name or not isinstance(element.name, str):
             logging.error("Data validation failed: name field is empty or of incorrect type")
             return False
@@ -171,7 +195,11 @@ class MongoDatabase:
         return True
 
     def _get_next_index(self) -> int:
-        """Gets the next index value"""
+        """Gets the next index value for a new element.
+
+        Returns:
+            The next available index value (current max + 1), or 1 if empty.
+        """
         try:
             # Find the current largest index value
             cursor = self.collection.find({}).sort("index", -1).limit(1)
@@ -185,7 +213,23 @@ class MongoDatabase:
             return 1
 
     async def add_element(self, time: str, name: str, result: Dict[str, Any], program: str, analysis: str, cognition: str, log: str, motivation: str, parent: Optional[int] = None, summary: str = "") -> bool:
-        """Adds a data element"""
+        """Adds a data element to the database.
+
+        Args:
+            time: Timestamp string for the element.
+            name: Name identifier for the element.
+            result: Dictionary containing result data.
+            program: Program content as a string.
+            analysis: Analysis content as a string.
+            cognition: Cognition content as a string.
+            log: Log content as a string.
+            motivation: Motivation text for embedding generation.
+            parent: Optional parent index for tree structure.
+            summary: Optional summary text.
+
+        Returns:
+            True if the element was added successfully, False otherwise.
+        """
         with self.lock:
             try:
                 # Get the next index
@@ -293,7 +337,14 @@ class MongoDatabase:
                 return False
 
     def delete_element_by_name(self, name: str) -> bool:
-        """Deletes a data element by name"""
+        """Deletes a data element by name.
+
+        Args:
+            name: The name of the element to delete.
+
+        Returns:
+            True if the element was deleted successfully, False otherwise.
+        """
         with self.lock:
             try:
                 # First, find the document to be deleted to get its _id
@@ -336,7 +387,14 @@ class MongoDatabase:
                 return False
 
     def delete_element_by_index(self, index: int) -> bool:
-        """Deletes a data element by index"""
+        """Deletes a data element by index.
+
+        Args:
+            index: The index of the element to delete.
+
+        Returns:
+            True if the element was deleted successfully, False otherwise.
+        """
         with self.lock:
             try:
                 # First, find the document to be deleted to get its _id
@@ -378,7 +436,13 @@ class MongoDatabase:
                 return False
 
     def delete_all_elements(self) -> bool:
-        """Deletes all data elements"""
+        """Deletes all data elements from the database.
+
+        Also clears the FAISS index and candidate set.
+
+        Returns:
+            True if all elements were deleted successfully, False otherwise.
+        """
         with self.lock:
             try:
                 # Get all _id's of documents for FAISS deletion
@@ -420,7 +484,11 @@ class MongoDatabase:
                 return False
 
     def sample_element(self) -> Optional[DataElement]:
-        """Samples a random element"""
+        """Samples a random element from the database.
+
+        Returns:
+            A randomly selected DataElement, or None if the database is empty.
+        """
         with self.lock:
             try:
                 # Use MongoDB's $sample aggregation pipeline for random sampling
@@ -447,7 +515,14 @@ class MongoDatabase:
                 return None
 
     def get_by_name(self, name: str) -> List[DataElement]:
-        """Gets all elements matching the given name"""
+        """Gets all elements matching the given name.
+
+        Args:
+            name: The name to search for.
+
+        Returns:
+            A list of DataElements matching the name, sorted by time.
+        """
         with self.lock:
             try:
                 # Query for all documents matching the name
@@ -473,7 +548,14 @@ class MongoDatabase:
                 return []
 
     def get_by_index(self, index: int) -> DataElement:
-        """Gets an element by its index"""
+        """Gets an element by its index.
+
+        Args:
+            index: The index of the element to retrieve.
+
+        Returns:
+            The DataElement with the specified index, or None if not found.
+        """
         with self.lock:
             try:
                 # Query for the document matching the index
@@ -499,9 +581,16 @@ class MongoDatabase:
                 return None
 
     def _evaluate_result(self, result: dict) -> float:
-        """
-        Evaluates the result string (CSV format) and returns the average score of all numerical values.
-        Skips the header, calculates the mean of the first data row's values.
+        """Evaluates the result and returns the average score of all numerical values.
+
+        Parses the 'test' field from the result dictionary as CSV format,
+        skips the header, and calculates the mean of the first data row's values.
+
+        Args:
+            result: Dictionary containing 'test' field with CSV-formatted data.
+
+        Returns:
+            The average score of numerical values, or 0.0 if parsing fails.
         """
         if not result.get('test'):
             logging.warning("benchmark result is an empty string")
@@ -539,6 +628,17 @@ class MongoDatabase:
             return 0.0
 
     def _evaluate_loss(self, result: dict) -> float:
+        """Evaluates the training loss from the result dictionary.
+
+        Parses the 'train' field from the result dictionary as CSV format
+        and returns the last step's loss value.
+
+        Args:
+            result: Dictionary containing 'train' field with CSV-formatted loss data.
+
+        Returns:
+            The last step's loss value, or 0.0 if parsing fails.
+        """
         if not result['train']:
             logging.warning("training loss result is empty string")
             return 0.0
@@ -690,7 +790,13 @@ class MongoDatabase:
                 return []
 
     def get_stats(self) -> Dict[str, Any]:
-        """Gets the database statistics"""
+        """Gets the database statistics.
+
+        Returns:
+            A dictionary containing database statistics including total records,
+            unique names, database size, collection size, index size, storage size,
+            and average object size.
+        """
         with self.lock:
             try:
                 # Total number of records
@@ -723,7 +829,14 @@ class MongoDatabase:
                 return {}
 
     def repair_database(self) -> bool:
-        """Repairs the database (cleans invalid data, rebuilds indexes)"""
+        """Repairs the database by cleaning invalid data and rebuilding indexes.
+
+        Deletes documents missing required fields or with empty field values,
+        drops and recreates indexes, and attempts to compact the collection.
+
+        Returns:
+            True if the repair was successful, False otherwise.
+        """
         with self.lock:
             try:
                 logging.info("Starting to repair the database...")
@@ -765,7 +878,10 @@ class MongoDatabase:
                 return False
 
     def close(self):
-        """Closes the database connection"""
+        """Closes the database connection.
+
+        Safely closes the MongoDB client connection if it exists.
+        """
         try:
             if hasattr(self, 'client'):
                 self.client.close()
@@ -774,11 +890,21 @@ class MongoDatabase:
             logging.error(f"Failed to close connection: {e}")
 
     def __enter__(self):
-        """Context manager enter method"""
+        """Context manager enter method.
+
+        Returns:
+            The MongoDatabase instance.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit method"""
+        """Context manager exit method.
+
+        Args:
+            exc_type: Exception type if an exception was raised.
+            exc_val: Exception value if an exception was raised.
+            exc_tb: Exception traceback if an exception was raised.
+        """
         self.close()
 
     def search_similar_motivations(self, query_motivation: str, k: int = 5) -> List[tuple]:
@@ -880,7 +1006,11 @@ class MongoDatabase:
                 return False
 
     def get_faiss_stats(self) -> Dict[str, Any]:
-        """Gets the FAISS index statistics"""
+        """Gets the FAISS index statistics.
+
+        Returns:
+            A dictionary containing FAISS index statistics.
+        """
         try:
             faiss_manager = get_faiss_manager()
             return faiss_manager.get_stats()
@@ -889,7 +1019,14 @@ class MongoDatabase:
             return {}
 
     def clean_faiss_orphans(self) -> Dict[str, Any]:
-        """Cleans orphaned vectors from FAISS"""
+        """Cleans orphaned vectors from FAISS.
+
+        Removes vectors from the FAISS index that no longer have corresponding
+        documents in MongoDB.
+
+        Returns:
+            A dictionary containing the cleanup result or error information.
+        """
         try:
             faiss_manager = get_faiss_manager()
             result = faiss_manager.clean_orphan_vectors()
@@ -1012,7 +1149,14 @@ class MongoDatabase:
 
     # Candidate set related methods
     def get_candidate_top_k(self, k: int = 10) -> List[DataElement]:
-        """Gets the top-k elements from the candidate set"""
+        """Gets the top-k elements from the candidate set.
+
+        Args:
+            k: Number of top elements to return.
+
+        Returns:
+            A list of the top-k DataElements from the candidate set.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_top_k(k)
@@ -1021,7 +1165,11 @@ class MongoDatabase:
             return []
 
     def get_all_candidates_with_scores(self) -> List[DataElement]:
-        """Gets all candidate set elements and their scores"""
+        """Gets all candidate set elements and their scores.
+
+        Returns:
+            A list of all DataElements in the candidate set.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_all_candidates()
@@ -1030,7 +1178,16 @@ class MongoDatabase:
             return []
 
     def candidate_sample_from_range(self, a: int, b: int, k: int) -> List[DataElement]:
-        """Samples within the candidate set in a specified range"""
+        """Samples within the candidate set in a specified range.
+
+        Args:
+            a: Start position of the range (1-based).
+            b: End position of the range (1-based, inclusive).
+            k: Number of samples to return.
+
+        Returns:
+            A list of k randomly sampled DataElements from the range.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.sample_from_range(a, b, k)
@@ -1039,7 +1196,14 @@ class MongoDatabase:
             return []
 
     async def add_to_candidates(self, element: DataElement) -> bool:
-        """Manually adds an element to the candidate set"""
+        """Manually adds an element to the candidate set.
+
+        Args:
+            element: The DataElement to add to the candidate set.
+
+        Returns:
+            True if the element was added successfully, False otherwise.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return await candidate_manager.add_element(element)
@@ -1048,7 +1212,14 @@ class MongoDatabase:
             return False
 
     def delete_candidate_by_index(self, index: int) -> bool:
-        """Deletes a candidate by index"""
+        """Deletes a candidate by index.
+
+        Args:
+            index: The index of the candidate to delete.
+
+        Returns:
+            True if the candidate was deleted successfully, False otherwise.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.delete_by_index(index)
@@ -1057,7 +1228,14 @@ class MongoDatabase:
             return False
 
     def delete_candidate_by_name(self, name: str) -> int:
-        """Deletes candidates by name"""
+        """Deletes candidates by name.
+
+        Args:
+            name: The name of the candidates to delete.
+
+        Returns:
+            The number of candidates deleted.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.delete_by_name(name)
@@ -1066,8 +1244,14 @@ class MongoDatabase:
             return 0
 
     async def update_candidate(self, element: DataElement) -> bool:
+        """Updates a candidate element.
 
-        """Updates a candidate element"""
+        Args:
+            element: The DataElement with updated data.
+
+        Returns:
+            True if the candidate was updated successfully, False otherwise.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return await candidate_manager.update_element(element)
@@ -1076,7 +1260,13 @@ class MongoDatabase:
             return False
 
     async def force_update_candidates(self) -> Dict[str, Any]:
-        """Forces an update of the candidate set"""
+        """Forces an update of the candidate set.
+
+        Retrieves the 300 most recent elements and updates the candidate set.
+
+        Returns:
+            A dictionary containing the update result or error information.
+        """
         try:
             candidate_manager = get_candidate_manager()
             recent_elements = self._get_recent_elements(300)  # Get more data for updating
@@ -1086,7 +1276,11 @@ class MongoDatabase:
             return {"error": str(e)}
 
     def get_candidate_stats(self) -> Dict[str, Any]:
-        """Gets candidate set statistics"""
+        """Gets candidate set statistics.
+
+        Returns:
+            A dictionary containing candidate set statistics.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_stats()
@@ -1095,7 +1289,12 @@ class MongoDatabase:
             return {"error": str(e)}
 
     def get_candidate_new_data_count(self) -> int:
-        """Gets the candidate set's new data count"""
+        """Gets the candidate set's new data count.
+
+        Returns:
+            The count of new data added since the last candidate update,
+            or -1 if an error occurs.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.get_new_data_count()
@@ -1104,7 +1303,11 @@ class MongoDatabase:
             return -1
 
     def clear_candidates(self) -> bool:
-        """Clears the candidate set"""
+        """Clears the candidate set.
+
+        Returns:
+            True if the candidate set was cleared successfully, False otherwise.
+        """
         try:
             candidate_manager = get_candidate_manager()
             return candidate_manager.clear()
@@ -1548,7 +1751,15 @@ class MongoDatabase:
                 return {"error": str(e)}
 
     def update_element_score(self, index: int, score: float) -> bool:
-        """Updates the score of an element in the database."""
+        """Updates the score of an element in the database.
+
+        Args:
+            index: The index of the element to update.
+            score: The new score value.
+
+        Returns:
+            True if the score was updated successfully, False otherwise.
+        """
         with self.lock:
             try:
                 result = self.collection.update_one(
@@ -1567,7 +1778,15 @@ class MongoDatabase:
                 return False
 
     def clean_invalid_result_elements(self) -> Dict[str, Any]:
-        """Cleans invalid elements with incomplete or only header in result field."""
+        """Cleans invalid elements with incomplete or only header in result field.
+
+        Scans all elements and removes those with incomplete CSV data in the
+        'train' or 'test' fields. Reparents children of deleted elements.
+
+        Returns:
+            A dictionary containing cleanup statistics including count_before,
+            cleaned_count, reparented_children, and count_after.
+        """
 
         def _is_csv_row_complete(csv_string: str) -> bool:
             """

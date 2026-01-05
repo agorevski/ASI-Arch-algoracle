@@ -68,13 +68,16 @@ class CandidateManager:
         self._update_element_score = update_element_score_func
 
     async def _evaluate_element(self, element: DataElement) -> float:
-        """
-        Evaluate data element score.
+        """Evaluate data element score.
+
+        Calculates a composite score based on loss, benchmark, and AI agent evaluation.
+        Updates the element's score and persists it to the database.
+
         Args:
-            element: Data element
+            element: Data element to evaluate.
 
         Returns:
-            float: Score
+            The calculated composite score (sum of loss, benchmark, and agent scores).
         """
 
         # 1. Calculate loss score (normalized to 10 points)
@@ -135,12 +138,18 @@ class CandidateManager:
         return total_score
 
     def _evaluate_filter(self, element: DataElement, standard_element: Optional[DataElement] = None) -> bool:
-        """
-        Evaluate data element filter conditions.
+        """Evaluate data element filter conditions.
+
+        Compares the element's loss and benchmark against a standard reference
+        element to determine if it meets the filtering criteria.
 
         Args:
-            element: Data element
-            standard_element: Standard reference element (optional)
+            element: Data element to evaluate.
+            standard_element: Standard reference element for comparison. If None,
+                the filter automatically passes.
+
+        Returns:
+            True if the element passes filter conditions, False otherwise.
         """
         if standard_element is None:
             # If no standard element or cannot get one, simplify filtering
@@ -168,11 +177,14 @@ class CandidateManager:
             return True  # Allow pass when evaluation fails
 
     def _get_standard_element(self) -> Optional[DataElement]:
-        """
-        Get standard reference element.
+        """Get standard reference element.
+
+        Retrieves the element at index 1 from the database to use as a
+        baseline for filtering comparisons.
 
         Returns:
-            Optional[DataElement]: Standard element, returns None if retrieval fails
+            The standard element if available, None if retrieval fails or
+            callback is not set.
         """
         if self._get_element_by_index is None:
             self.logger.warning("Database callback function not set, cannot get standard element")
@@ -184,8 +196,13 @@ class CandidateManager:
             self.logger.warning(f"Failed to get standard element: {e}")
             return None
 
-    def _load_candidates(self):
-        """Load candidate set from file."""
+    def _load_candidates(self) -> None:
+        """Load candidate set from file.
+
+        Reads the storage file and reconstructs the candidate list. Handles
+        both old and new format compatibility. On failure, initializes an
+        empty candidate set.
+        """
         try:
             if os.path.exists(self.storage_file):
                 with open(self.storage_file, 'r', encoding='utf-8') as f:
@@ -219,8 +236,12 @@ class CandidateManager:
             self.candidates = []
             self.new_data_count = 0
 
-    def _save_candidates(self):
-        """Save candidate set to file."""
+    def _save_candidates(self) -> None:
+        """Save candidate set to file.
+
+        Serializes the current candidates to JSON and writes to the storage
+        file. Removes embedding data before saving to reduce file size.
+        """
         try:
             candidates_to_save = []
             for element in self.candidates:
@@ -243,11 +264,14 @@ class CandidateManager:
             self.logger.error(f"Failed to save candidate set: {e}")
 
     def increment_count(self) -> bool:
-        """
-        Increment new data count, check if update should be triggered.
+        """Increment new data count and check if update should be triggered.
+
+        Thread-safe method that increments the new data counter and determines
+        if the update threshold has been reached.
 
         Returns:
-            bool: Whether candidate set update should be triggered
+            True if the update threshold has been reached and candidate set
+            update should be triggered, False otherwise.
         """
         with self.lock:
             try:
@@ -266,14 +290,17 @@ class CandidateManager:
                 return False
 
     async def add_element(self, element: DataElement) -> bool:
-        """
-        Directly add element to candidate set (for manual addition).
+        """Directly add element to candidate set.
+
+        Evaluates the element's score and adds it to the candidate set if there
+        is capacity or if it scores higher than the lowest-scoring candidate.
 
         Args:
-            element: Data element
+            element: Data element to add.
 
         Returns:
-            bool: Whether addition was successful
+            True if the element was successfully added or replaced an existing
+            candidate, False if the score was too low.
         """
         with self.lock:
             try:
@@ -305,14 +332,17 @@ class CandidateManager:
                 return False
 
     async def update_candidates(self, new_elements: List[DataElement]) -> Dict[str, Any]:
-        """
-        Update candidate set: compare newly added data with existing candidates, find top-50.
+        """Update candidate set with new elements.
+
+        Filters and evaluates new elements, merges them with existing candidates,
+        sorts by score, and retains only the top candidates up to capacity.
 
         Args:
-            new_elements: List of newly added data elements
+            new_elements: List of newly added data elements to evaluate.
 
         Returns:
-            Dict[str, Any]: Update statistics
+            Dictionary containing update statistics including counts of evaluated
+            elements, new entries, score ranges, and any errors.
         """
         with self.lock:
             try:
@@ -383,14 +413,18 @@ class CandidateManager:
                 return {"error": str(e)}
 
     def replace_candidates(self, new_candidates: List[DataElement]) -> Dict[str, Any]:
-        """
-        Completely replace existing candidate set with new element list.
+        """Completely replace existing candidate set with new element list.
+
+        Replaces the current candidates with the provided list, truncating to
+        capacity if necessary.
 
         Args:
-            new_candidates: New candidate element list (should be sorted by score)
+            new_candidates: New candidate element list, ideally sorted by score
+                in descending order.
 
         Returns:
-            Dict[str, Any]: Update statistics
+            Dictionary containing update statistics with old and new counts,
+            timestamp, and any errors.
         """
         with self.lock:
             try:
@@ -417,14 +451,14 @@ class CandidateManager:
                 return {"error": str(e)}
 
     def get_top_k(self, k: int = 10) -> List[DataElement]:
-        """
-        Get top-k candidates.
+        """Get top-k candidates by score.
 
         Args:
-            k: Number to return
+            k: Number of top candidates to return. Defaults to 10.
 
         Returns:
-            List[DataElement]: top-k data elements
+            List of the top-k highest-scoring data elements, or fewer if
+            the candidate set has less than k elements.
         """
         with self.lock:
             try:
@@ -436,11 +470,10 @@ class CandidateManager:
                 return []
 
     def get_all_candidates(self) -> List[DataElement]:
-        """
-        Get all candidates and their scores.
+        """Get all candidates and their scores.
 
         Returns:
-            List[DataElement]: Candidate list
+            A copy of the candidate list to prevent external modification.
         """
         with self.lock:
             try:
@@ -451,16 +484,20 @@ class CandidateManager:
                 return []
 
     def sample_from_range(self, a: int, b: int, k: int) -> List[DataElement]:
-        """
-        Randomly sample k candidates from the a-th to b-th position range after sorting.
+        """Randomly sample k candidates from a position range.
+
+        Selects candidates from the a-th to b-th position in the sorted
+        candidate list and returns a random sample.
 
         Args:
-            a: Range start position (1-based counting)
-            b: Range end position (1-based counting, inclusive)
-            k: Sample count
+            a: Range start position (1-based, inclusive).
+            b: Range end position (1-based, inclusive).
+            k: Number of elements to sample.
 
         Returns:
-            List[DataElement]: k randomly sampled elements
+            List of k randomly sampled elements from the specified range.
+            Returns fewer elements if the range contains less than k candidates,
+            or an empty list if parameters are invalid.
         """
         with self.lock:
             try:
@@ -501,14 +538,16 @@ class CandidateManager:
                 return []
 
     def delete_by_index(self, index: int) -> bool:
-        """
-        Delete candidate by index.
+        """Delete candidate by its element index.
+
+        Searches for and removes the candidate with the matching index value.
 
         Args:
-            index: Data element index
+            index: Data element index to delete.
 
         Returns:
-            bool: Whether deletion was successful
+            True if an element was found and deleted, False if no matching
+            element was found or an error occurred.
         """
         with self.lock:
             try:
@@ -528,14 +567,15 @@ class CandidateManager:
                 return False
 
     def delete_by_name(self, name: str) -> int:
-        """
-        Delete candidates by name.
+        """Delete all candidates matching a given name.
+
+        Searches for and removes all candidates with the specified name.
 
         Args:
-            name: Data element name
+            name: Data element name to match for deletion.
 
         Returns:
-            int: Number of deletions
+            Number of elements deleted, or 0 if none found or error occurred.
         """
         with self.lock:
             try:
@@ -560,14 +600,18 @@ class CandidateManager:
                 return 0
 
     async def update_element(self, element: DataElement) -> bool:
-        """
-        Update element in candidate set.
+        """Update an existing element in the candidate set.
+
+        Finds the element by index, re-evaluates its score, updates it in
+        place, and re-sorts the candidate list.
 
         Args:
-            element: Updated data element
+            element: Updated data element with the same index as an existing
+                candidate.
 
         Returns:
-            bool: Whether update was successful
+            True if the element was found and updated, False if no matching
+            element was found or an error occurred.
         """
         with self.lock:
             try:
@@ -592,7 +636,13 @@ class CandidateManager:
                 return False
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get candidate set statistics."""
+        """Get candidate set statistics.
+
+        Returns:
+            Dictionary containing capacity, current size, update threshold,
+            new data count, score statistics (highest, lowest, average, range),
+            and whether an update is needed.
+        """
         with self.lock:
             try:
                 if not self.candidates:
@@ -623,12 +673,23 @@ class CandidateManager:
                 return {"error": str(e)}
 
     def get_new_data_count(self) -> int:
-        """Get current new data count."""
+        """Get current new data count.
+
+        Returns:
+            The number of new data elements added since the last update.
+        """
         with self.lock:
             return self.new_data_count
 
     def clear(self) -> bool:
-        """Clear candidate set."""
+        """Clear candidate set.
+
+        Removes all candidates and resets the new data counter.
+
+        Returns:
+            True if the candidate set was successfully cleared, False if an
+            error occurred.
+        """
         with self.lock:
             try:
                 self.candidates = []
@@ -647,7 +708,14 @@ _candidate_manager = None
 
 
 def get_candidate_manager() -> CandidateManager:
-    """Get global candidate manager instance."""
+    """Get global candidate manager instance.
+
+    Creates a new CandidateManager instance if one doesn't exist, using
+    the singleton pattern.
+
+    Returns:
+        The global CandidateManager instance.
+    """
     global _candidate_manager
     if _candidate_manager is None:
         _candidate_manager = CandidateManager()

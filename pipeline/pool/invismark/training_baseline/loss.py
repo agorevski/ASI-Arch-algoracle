@@ -12,7 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class WatermarkLoss(nn.Module):
+    """Loss module for watermark training combining reconstruction and detection losses."""
+
     def __init__(self, cfg):
+        """Initialize the WatermarkLoss module.
+
+        Args:
+            cfg: Configuration dictionary containing loss hyperparameters including
+                'beta_start_epoch', 'beta_epochs', 'beta_min', 'beta_max', and
+                'noise_start_epoch'.
+        """
         super(WatermarkLoss, self).__init__()
         self.cfg = cfg
         # lpips: image should be RGB, IMPORTANT: normalized to [-1,1]
@@ -24,6 +33,14 @@ class WatermarkLoss(nn.Module):
         self.train_bit_accuracy = defaultdict(float)
 
     def _beta_coef(self, epoch):
+        """Compute the beta coefficient for loss weighting based on current epoch.
+
+        Args:
+            epoch: Current training epoch number.
+
+        Returns:
+            float: Beta coefficient value from logarithmic schedule.
+        """
         cur_epoch = min(max(0, epoch - self.cfg['beta_start_epoch']),
                         self.cfg['beta_epochs'] - 1)
         # schedule = np.linspace(
@@ -33,6 +50,17 @@ class WatermarkLoss(nn.Module):
         return schedule[cur_epoch]
 
     def forward(self, out, secret, epoch):
+        """Compute the combined watermark loss.
+
+        Args:
+            out: Dictionary containing model outputs with keys 'resized_inputs',
+                'resized_outputs', 'decode_wm', and optionally 'decode_wm_noise'.
+            secret: Tensor containing the secret watermark bits.
+            epoch: Current training epoch number.
+
+        Returns:
+            torch.Tensor: Combined weighted loss value.
+        """
         # Repeat the secret to match the batch size
         secret = secret.repeat(
             out['resized_outputs'].shape[0] // secret.shape[0], 1)

@@ -26,7 +26,17 @@ rag_service = None
 
 
 def init_rag_service(data_dir: str):
-    """Initialize the RAG service"""
+    """Initialize the RAG service with documents from the specified directory.
+
+    Loads cognition data from the given directory and indexes the documents
+    into the OpenSearch RAG service.
+
+    Args:
+        data_dir: Path to the directory containing cognition data files.
+
+    Returns:
+        bool: True if initialization and indexing succeeded, False otherwise.
+    """
     global rag_service
     start_time = time.time()
     logging.info(f"[CALL] init_rag_service - data_dir: {data_dir}")
@@ -68,7 +78,17 @@ def init_rag_service(data_dir: str):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Global exception handler"""
+    """Global exception handler for unhandled errors.
+
+    Logs detailed error information including exception type, message,
+    request details, and full traceback.
+
+    Args:
+        e: The exception that was raised.
+
+    Returns:
+        tuple: A JSON response containing error details and HTTP status 500.
+    """
     logging.error("[CALL] handle_exception - Unhandled exception occurred")
     logging.error(f"Exception Type: {type(e).__name__}")
     logging.error(f"Exception Message: {str(e)}")
@@ -86,7 +106,14 @@ def handle_exception(e):
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint to verify service status.
+
+    Checks if the RAG service is initialized and retrieves current statistics.
+
+    Returns:
+        tuple: A JSON response containing health status and service stats.
+            Returns HTTP 200 if healthy, 503 if service unavailable.
+    """
     start_time = time.time()
     logging.info(f"[CALL] health_check - IP: {request.remote_addr}")
 
@@ -118,7 +145,22 @@ def health_check():
 
 @app.route('/search', methods=['POST'])
 def search_patterns():
-    """Search for similar experiment trigger patterns"""
+    """Search for similar experiment trigger patterns.
+
+    Accepts a POST request with a JSON body containing search parameters
+    and returns matching patterns from the indexed documents.
+
+    Request Body:
+        query (str): The search query text.
+        k (int, optional): Number of results to return. Defaults to 5. Max 50.
+        similarity_threshold (float, optional): Minimum similarity score (0-1).
+            Defaults to 0.6.
+
+    Returns:
+        tuple: A JSON response containing the query, total results count,
+            and list of matching results. Returns HTTP 200 on success,
+            400 for invalid parameters, 500 on error, or 503 if service unavailable.
+    """
     start_time = time.time()
     logging.info(f"[CALL] search_patterns - IP: {request.remote_addr}")
 
@@ -194,7 +236,18 @@ def search_patterns():
 
 @app.route('/paper/<paper_key>', methods=['GET'])
 def get_paper_documents(paper_key):
-    """Get all related documents based on the paper key"""
+    """Get all related documents based on the paper key.
+
+    Retrieves all indexed documents associated with a specific paper identifier.
+
+    Args:
+        paper_key: The unique identifier for the paper to search for.
+
+    Returns:
+        tuple: A JSON response containing the paper key, total document count,
+            and list of documents. Returns HTTP 200 on success, 400 for empty key,
+            500 on error, or 503 if service unavailable.
+    """
     start_time = time.time()
     logging.info(f"[CALL] get_paper_documents - IP: {request.remote_addr}, paper_key: {paper_key}")
 
@@ -237,7 +290,14 @@ def get_paper_documents(paper_key):
 
 @app.route('/stats', methods=['GET'])
 def get_statistics():
-    """Get index statistics"""
+    """Get index statistics from the RAG service.
+
+    Retrieves current statistics about the indexed documents and service state.
+
+    Returns:
+        tuple: A JSON response containing index statistics.
+            Returns HTTP 200 on success, 500 on error, or 503 if service unavailable.
+    """
     start_time = time.time()
     logging.info(f"[CALL] get_statistics - IP: {request.remote_addr}")
 
@@ -267,7 +327,15 @@ def get_statistics():
 
 @app.route('/reinit', methods=['POST'])
 def reinitialize_service():
-    """Re-initialize the RAG service"""
+    """Re-initialize the RAG service.
+
+    Reloads cognition data from the configured directory and re-indexes
+    all documents. Useful for refreshing the service after data updates.
+
+    Returns:
+        tuple: A JSON response indicating success or failure status.
+            Returns HTTP 200 on success, or 500 on error.
+    """
     start_time = time.time()
     logging.info(f"[CALL] reinitialize_service - IP: {request.remote_addr}")
 
@@ -302,7 +370,15 @@ def reinitialize_service():
 
 @app.route('/', methods=['GET'])
 def api_info():
-    """API information and usage instructions"""
+    """API information and usage instructions.
+
+    Provides documentation about available endpoints, their methods,
+    and example usage for the RAG API service.
+
+    Returns:
+        Response: A JSON response containing service description,
+            available endpoints, and a search example.
+    """
     start_time = time.time()
     logging.info(f"[CALL] api_info - IP: {request.remote_addr}")
 

@@ -28,20 +28,61 @@ from einops import rearrange
 # ------------------------------
 
 class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization.
+
+    A simplified layer normalization that only uses the root mean square
+    of the input, without mean centering.
+
+    Args:
+        dim: The dimension of the input features.
+        eps: Small constant for numerical stability.
+    """
+
     def __init__(self, dim: int, eps: float = 1e-5):
+        """Initializes the RMSNorm layer.
+
+        Args:
+            dim: The dimension of the input features.
+            eps: Small constant for numerical stability.
+        """
         super().__init__()
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [*, dim]
+        """Applies RMS normalization to the input tensor.
+
+        Args:
+            x: Input tensor of shape [*, dim].
+
+        Returns:
+            Normalized tensor of the same shape as input.
+        """
         norm_x = x.mul(x).mean(dim=-1, keepdim=True)
         x = x * torch.rsqrt(norm_x + self.eps)
         return x * self.weight
 
 
 class SwiGLU(nn.Module):
+    """SwiGLU activation function as a feed-forward network module.
+
+    Implements the SwiGLU activation: SwiGLU(x, W, V) = Swish(xW) * xV,
+    which has been shown to improve transformer performance.
+
+    Args:
+        dim: Input and output dimension.
+        hidden_dim: Hidden layer dimension (before the 2x expansion for gating).
+        dropout: Dropout probability.
+    """
+
     def __init__(self, dim: int, hidden_dim: int, dropout: float = 0.0):
+        """Initializes the SwiGLU module.
+
+        Args:
+            dim: Input and output dimension.
+            hidden_dim: Hidden layer dimension.
+            dropout: Dropout probability.
+        """
         super().__init__()
         # Use 2 * hidden_dim projection for SwiGLU (split into gate and value)
         self.w_in = nn.Linear(dim, hidden_dim * 2)
@@ -49,6 +90,14 @@ class SwiGLU(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Applies SwiGLU activation and projection.
+
+        Args:
+            x: Input tensor of shape [*, dim].
+
+        Returns:
+            Output tensor of shape [*, dim].
+        """
         a, b = self.w_in(x).chunk(2, dim=-1)
         # swish(x) = x * sigmoid(x)
         x = F.silu(a) * b
@@ -75,6 +124,30 @@ def compiled_delta_update(
     eps: float,
     chunk_size: int,
 ) -> torch.Tensor:
+    """Compiled multi-timescale delta update kernel with phi feature map.
+
+    Performs chunked sequential processing of the delta-rule attention
+    mechanism with two timescales, positive feature maps (phi = elu + 1),
+    and running normalization for stability.
+
+    Args:
+        q: Query tensor of shape [batch, seq_len, head_dim].
+        k: Key tensor of shape [batch, seq_len, head_dim].
+        v: Value tensor of shape [batch, seq_len, head_dim].
+        beta_in: Input-conditioned gate of shape [batch, seq_len, 1].
+        mask: Attention mask with 1 for valid tokens, 0 for padding,
+            shape [batch, seq_len, 1].
+        base_beta_1: Scalar tensor for the first timescale base decay.
+        base_beta_2: Scalar tensor for the second timescale base decay.
+        beta_min: Minimum value for clamping decay factors.
+        beta_max: Maximum value for clamping decay factors.
+        eps: Small constant for numerical stability in normalization.
+        chunk_size: Size of chunks for memory-efficient processing.
+
+    Returns:
+        Output tensor of shape [batch, seq_len, head_dim] containing
+        the normalized linear attention results.
+    """
     bsz, seqlen, d = q.shape
 
     # Positive feature map for stability (Performers): phi(x) = elu(x) + 1
@@ -147,11 +220,30 @@ def compiled_delta_update(
 # ------------------------------
 
 class DeltaRule(nn.Module):
-    """Multi-timescale gated delta-rule with phi and normalization.
-    Keeps the same public forward signature.
+    """Multi-timescale gated delta-rule with phi feature map and normalization.
+
+    Implements a dual-timescale associative memory mechanism with input-conditioned
+    forgetting, positive feature maps for stability, and chunked processing for
+    memory efficiency.
+
+    Args:
+        head_dim: Dimension of each attention head.
+        chunk_size: Size of chunks for memory-efficient processing.
+        beta_min: Minimum value for decay factor clamping.
+        beta_max: Maximum value for decay factor clamping.
+        eps: Small constant for numerical stability.
     """
 
     def __init__(self, head_dim: int, *, chunk_size: int = 64, beta_min: float = 0.01, beta_max: float = 0.995, eps: float = 1e-6):
+        """Initializes the DeltaRule module.
+
+        Args:
+            head_dim: Dimension of each attention head.
+            chunk_size: Size of chunks for memory-efficient processing.
+            beta_min: Minimum value for decay factor clamping.
+            beta_max: Maximum value for decay factor clamping.
+            eps: Small constant for numerical stability.
+        """
         super().__init__()
         self.head_dim = head_dim
         # Two base timescales (shared across heads by design for parameter economy)
@@ -164,15 +256,18 @@ class DeltaRule(nn.Module):
         self.eps = float(eps)
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, beta: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
+        """Applies the multi-timescale delta-rule attention.
+
         Args:
-            q: [batch, seq_len, head_dim]
-            k: [batch, seq_len, head_dim]
-            v: [batch, seq_len, head_dim]
-            beta: [batch, seq_len, 1] input-conditioned gate
-            mask: optional [batch, seq_len, 1] with 1 for valid tokens, 0 for padding
+            q: Query tensor of shape [batch, seq_len, head_dim].
+            k: Key tensor of shape [batch, seq_len, head_dim].
+            v: Value tensor of shape [batch, seq_len, head_dim].
+            beta: Input-conditioned gate of shape [batch, seq_len, 1].
+            mask: Optional attention mask with 1 for valid tokens, 0 for padding,
+                shape [batch, seq_len, 1].
+
         Returns:
-            [batch, seq_len, head_dim]
+            Output tensor of shape [batch, seq_len, head_dim].
         """
         bsz, seqlen, _ = q.shape
         if mask is None:
@@ -214,9 +309,27 @@ class DeltaRule(nn.Module):
 # ------------------------------
 
 class DeltaNetLayer(nn.Module):
-    """Single DeltaNet attention layer with multi-head delta-rule memory."""
+    """Single DeltaNet attention layer with multi-head delta-rule memory.
+
+    Implements a multi-head attention mechanism using the delta-rule for
+    associative memory, with head-specific recency bias and pre-normalization.
+
+    Args:
+        hidden_size: Total dimension of the model.
+        num_heads: Number of attention heads.
+        dropout: Dropout probability.
+        **kwargs: Additional keyword arguments (unused).
+    """
 
     def __init__(self, hidden_size: int, num_heads: int = 8, dropout: float = 0.1, **kwargs):
+        """Initializes the DeltaNetLayer.
+
+        Args:
+            hidden_size: Total dimension of the model.
+            num_heads: Number of attention heads.
+            dropout: Dropout probability.
+            **kwargs: Additional keyword arguments (unused).
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -245,6 +358,7 @@ class DeltaNetLayer(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initializes layer parameters with Xavier uniform and appropriate biases."""
         nn.init.xavier_uniform_(self.q_proj.weight)
         nn.init.xavier_uniform_(self.k_proj.weight)
         nn.init.xavier_uniform_(self.v_proj.weight)
@@ -254,6 +368,16 @@ class DeltaNetLayer(nn.Module):
         nn.init.constant_(self.beta_proj.bias, 1.5)  # sigmoid ~ 0.82
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Applies multi-head delta-rule attention with residual connection.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask of shape [batch, seq_len] or
+                [batch, 1, 1, seq_len] with 1 for valid tokens, 0 for padding.
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         # Pre-norm for stability
         residual = x
         x = self.layer_norm(x)
@@ -334,7 +458,29 @@ class DeltaNetLayer(nn.Module):
 # ------------------------------
 
 class DeltaNetBlock(nn.Module):
+    """Transformer block combining DeltaNet attention with SwiGLU FFN.
+
+    A complete transformer block with pre-normalization, delta-rule attention,
+    and a SwiGLU feed-forward network with residual connections.
+
+    Args:
+        hidden_size: Total dimension of the model.
+        num_heads: Number of attention heads.
+        ffn_hidden_size: Hidden dimension of the FFN. Defaults to 3x hidden_size.
+        dropout: Dropout probability.
+        **kwargs: Additional keyword arguments (unused).
+    """
+
     def __init__(self, hidden_size: int, num_heads: int = 8, ffn_hidden_size: Optional[int] = None, dropout: float = 0.1, **kwargs):
+        """Initializes the DeltaNetBlock.
+
+        Args:
+            hidden_size: Total dimension of the model.
+            num_heads: Number of attention heads.
+            ffn_hidden_size: Hidden dimension of the FFN. Defaults to 3x hidden_size.
+            dropout: Dropout probability.
+            **kwargs: Additional keyword arguments (unused).
+        """
         super().__init__()
         if ffn_hidden_size is None:
             # Slightly reduced width because SwiGLU is more expressive
@@ -349,6 +495,15 @@ class DeltaNetBlock(nn.Module):
 
         
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Applies attention and FFN with residual connections.
+
+        Args:
+            x: Input tensor of shape [batch, seq_len, hidden_size].
+            mask: Optional attention mask.
+
+        Returns:
+            Output tensor of shape [batch, seq_len, hidden_size].
+        """
         # Attention (pre-norm inside layer)
         x = self.attention(x, mask)
 
@@ -365,7 +520,21 @@ class DeltaNetBlock(nn.Module):
 # ------------------------------
 
 class DeltaNet(nn.Module):
-    """Complete DeltaNet model with enhanced DeltaNetLayer blocks."""
+    """Complete DeltaNet model with enhanced DeltaNetLayer blocks.
+
+    A transformer language model using linear attention with multi-timescale
+    delta-rule memory, featuring sub-quadratic complexity and linear-time
+    streaming capabilities.
+
+    Args:
+        vocab_size: Size of the vocabulary.
+        hidden_size: Dimension of the model.
+        num_layers: Number of transformer blocks.
+        num_heads: Number of attention heads.
+        max_seq_len: Maximum sequence length for position embeddings.
+        dropout: Dropout probability.
+        **kwargs: Additional keyword arguments (unused).
+    """
 
     def __init__(
         self,
@@ -377,6 +546,17 @@ class DeltaNet(nn.Module):
         dropout: float = 0.1,
         **kwargs,
     ):
+        """Initializes the DeltaNet model.
+
+        Args:
+            vocab_size: Size of the vocabulary.
+            hidden_size: Dimension of the model.
+            num_layers: Number of transformer blocks.
+            num_heads: Number of attention heads.
+            max_seq_len: Maximum sequence length for position embeddings.
+            dropout: Dropout probability.
+            **kwargs: Additional keyword arguments (unused).
+        """
         super().__init__()
         self.hidden_size = hidden_size
         self.max_seq_len = max_seq_len
@@ -399,12 +579,19 @@ class DeltaNet(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Initializes embedding weights with normal distribution."""
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.position_embedding.weight, std=0.02)
 
     def _maybe_expand_position_embedding(self, seq_len: int, device: torch.device):
-        """Dynamically expand position embeddings if needed to match sequence length.
-        Preserves learned weights for existing positions and initializes new ones.
+        """Dynamically expands position embeddings if needed.
+
+        Preserves learned weights for existing positions and initializes
+        new positions with normal distribution.
+
+        Args:
+            seq_len: Required sequence length.
+            device: Device to place new embeddings on.
         """
         current_n = self.position_embedding.num_embeddings
         if seq_len > current_n:
@@ -417,6 +604,15 @@ class DeltaNet(nn.Module):
             self.max_seq_len = seq_len
 
     def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Computes forward pass through the DeltaNet model.
+
+        Args:
+            input_ids: Token indices of shape [batch, seq_len].
+            attention_mask: Optional mask with 1 for valid tokens, 0 for padding.
+
+        Returns:
+            Logits tensor of shape [batch, seq_len, vocab_size].
+        """
         bsz, seqlen = input_ids.shape
 
         # Ensure position embeddings cover current sequence length
@@ -439,6 +635,12 @@ class DeltaNet(nn.Module):
         return logits
 
     def get_architecture_summary(self) -> str:
+        """Returns a formatted string summarizing the model architecture.
+
+        Returns:
+            Multi-line string with architecture details including model type,
+            dimensions, layer counts, and parameter count.
+        """
         return f"""
 DeltaNet Architecture Summary (Enhanced):
 - Model Type: Linear Attention Transformer (Multi-Scale Gated Delta-Rule)
@@ -454,6 +656,23 @@ DeltaNet Architecture Summary (Enhanced):
 # Factory function for creating the model
 
 def create_model(vocab_size: int = 50257, **kwargs) -> 'DeltaNet':
+    """Factory function to create a DeltaNet model with default configuration.
+
+    Creates a DeltaNet instance with sensible defaults that can be overridden
+    via keyword arguments.
+
+    Args:
+        vocab_size: Size of the vocabulary. Defaults to 50257 (GPT-2 tokenizer).
+        **kwargs: Override any default configuration parameter including:
+            - hidden_size: Model dimension (default: 512).
+            - num_layers: Number of transformer blocks (default: 6).
+            - num_heads: Number of attention heads (default: 8).
+            - max_seq_len: Maximum sequence length (default: 2048).
+            - dropout: Dropout probability (default: 0.1).
+
+    Returns:
+        Configured DeltaNet model instance.
+    """
     default_config = {
         'hidden_size': 512,
         'num_layers': 6,

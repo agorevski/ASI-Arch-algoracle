@@ -14,7 +14,16 @@ from config_loader import Config
 
 @function_tool
 def read_code_file() -> Dict[str, Any]:
-    """Read a code file and return its contents."""
+    """Read a code file and return its contents.
+
+    Reads the source file specified in the Config.SOURCE_FILE configuration.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - success (bool): True if the file was read successfully.
+            - content (str): The file contents if successful.
+            - error (str): Error message if unsuccessful.
+    """
     source_file = Config.SOURCE_FILE
     try:
         with open(source_file, 'r') as f:
@@ -26,7 +35,17 @@ def read_code_file() -> Dict[str, Any]:
 
 @function_tool
 def read_csv_file(file_path: str) -> Dict[str, Any]:
-    """Read a CSV file and return its contents."""
+    """Read a CSV file and return its contents.
+
+    Args:
+        file_path: The path to the CSV file to read.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - success (bool): True if the file was read successfully.
+            - content (str): The file contents if successful.
+            - error (str): Error message if unsuccessful.
+    """
     try:
         with open(file_path, 'r') as f:
             content = f.read()
@@ -37,7 +56,19 @@ def read_csv_file(file_path: str) -> Dict[str, Any]:
 
 @function_tool
 def write_code_file(content: str) -> Dict[str, Any]:
-    """Write content to a code file."""
+    """Write content to a code file.
+
+    Writes the provided content to the source file specified in Config.SOURCE_FILE.
+
+    Args:
+        content: The content to write to the file.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - success (bool): True if the file was written successfully.
+            - message (str): Success message if successful.
+            - error (str): Error message if unsuccessful.
+    """
     source_file = Config.SOURCE_FILE
     try:
         with open(source_file, 'w') as f:
@@ -49,7 +80,22 @@ def write_code_file(content: str) -> Dict[str, Any]:
 
 @function_tool
 def run_training_script(name: str, script_path: str) -> Dict[str, Any]:
-    """Run the training script and return its output."""
+    """Run the training script and return its output.
+
+    Executes a training script locally for up to 60 seconds as a sanity check,
+    then schedules an Azure ML pipeline job for complete training.
+
+    Args:
+        name: The model name to pass to the training script.
+        script_path: The relative path to the training script.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - success (bool): True if the script executed successfully.
+            - message (str): Success message if successful.
+            - output (str): The combined stdout/stderr output from the script.
+            - error (str): Error message if unsuccessful.
+    """
     try:
         script_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), '..', script_path)
@@ -101,7 +147,19 @@ def run_training_script(name: str, script_path: str) -> Dict[str, Any]:
 
 @function_tool
 def run_plot_script(script_path: str) -> Dict[str, Any]:
-    """Run the plotting script."""
+    """Run the plotting script.
+
+    Executes a Python plotting script and captures its output.
+
+    Args:
+        script_path: The path to the plotting script to execute.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - success (bool): True if the script executed successfully.
+            - output (str): The stdout output from the script.
+            - error (str): The stderr output from the script.
+    """
     try:
         args = ['python', script_path]
         result = subprocess.run(
@@ -116,7 +174,19 @@ def run_plot_script(script_path: str) -> Dict[str, Any]:
 
 
 def run_rag(query: str) -> Dict[str, Any]:
-    """Run RAG and return the results."""
+    """Run RAG (Retrieval-Augmented Generation) and return the results.
+
+    Sends a query to the RAG service and retrieves relevant documents.
+
+    Args:
+        query: The search query to send to the RAG service.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - success (bool): True if the query was successful.
+            - results (dict): The search results from the RAG service if successful.
+            - error (str): Error message if unsuccessful.
+    """
     try:
         response = requests.post(
             f'{Config.RAG}/search',

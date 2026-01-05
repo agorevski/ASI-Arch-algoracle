@@ -9,11 +9,15 @@ class EmbeddingService:
     """Embedding service client for calling remote API to compute text vectors."""
 
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Initialize embedding service.
+        """Initialize embedding service.
 
         Args:
-            api_key: API key, if not provided, will read from ARK_API_KEY environment variable
+            api_key: API key, if not provided, will read from ARK_API_KEY
+                environment variable.
+
+        Raises:
+            ValueError: If no API key is provided and ARK_API_KEY environment
+                variable is not set.
         """
         self.api_key = api_key or os.getenv('ARK_API_KEY')
         if not self.api_key:
@@ -24,14 +28,17 @@ class EmbeddingService:
         self.logger = logging.getLogger(__name__)
 
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Get embedding vectors for texts.
+        """Get embedding vectors for texts.
 
         Args:
-            texts: List of texts to compute embeddings for
+            texts: List of texts to compute embeddings for.
 
         Returns:
-            List[List[float]]: List of embedding vectors corresponding to each text
+            List of embedding vectors corresponding to each text.
+
+        Raises:
+            requests.exceptions.RequestException: If the API request fails.
+            KeyError: If the API response is missing expected fields.
         """
         if not texts:
             return []
@@ -72,14 +79,17 @@ class EmbeddingService:
             raise
 
     def get_single_embedding(self, text: str) -> List[float]:
-        """
-        Get embedding vector for single text.
+        """Get embedding vector for single text.
 
         Args:
-            text: Text to compute embedding for
+            text: Text to compute embedding for.
 
         Returns:
-            List[float]: Embedding vector of the text
+            Embedding vector of the text, or empty list if input is empty.
+
+        Raises:
+            requests.exceptions.RequestException: If the API request fails.
+            KeyError: If the API response is missing expected fields.
         """
         embeddings = self.get_embeddings([text])
         return embeddings[0] if embeddings else []
@@ -90,7 +100,14 @@ _embedding_service = None
 
 
 def get_embedding_service() -> EmbeddingService:
-    """Get global embedding service instance."""
+    """Get global embedding service instance.
+
+    Returns:
+        The singleton EmbeddingService instance.
+
+    Raises:
+        ValueError: If ARK_API_KEY environment variable is not set.
+    """
     global _embedding_service
     if _embedding_service is None:
         _embedding_service = EmbeddingService()
